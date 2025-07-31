@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.icara.ui.components.SearchBar
 
 data class DictionaryEntry(
     val word: String,
@@ -72,18 +72,38 @@ fun DictionaryScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            contentPadding = paddingValues,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            items(dictionaryList) { entry ->
-                DictionaryItem(
-                    entry = entry,
-                    onClick = {}
-                )
+            Text(
+                text = "Kamus Isyarat",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            // Search bar
+            SearchBar(
+                searchText = searchText,
+                onSearchTextChanged = { searchText = it },
+                modifier = Modifier.padding(top = 16.dp),
+            )
+
+            // Dictionary entries
+            LazyColumn(
+                contentPadding = PaddingValues(top = 16.dp),
+                modifier = Modifier
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(dictionaryList) { entry ->
+                    DictionaryItem(
+                        entry = entry,
+                        onClick = {}
+                    )
+                }
             }
         }
     }
@@ -94,24 +114,22 @@ fun DictionaryItem(entry: DictionaryEntry, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp), // A slightly larger radius looks nice
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (entry.word == "Terimakasih") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        // This is the parent Row. It now controls the height of all its children.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // FIX: Add this modifier to make all children match the height of the tallest one.
                 .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // This inner Row contains the text and its own padding.
+            // Text section
             Row(
                 modifier = Modifier
                     .padding(16.dp)
-                    .weight(1f), // Use weight to allow the icon Box to have a fixed size
+                    .weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -142,16 +160,15 @@ fun DictionaryItem(entry: DictionaryEntry, onClick: () -> Unit) {
                 }
             }
 
-            // This is the icon Box.
+            // This is the icon box
             Box(
                 modifier = Modifier
-                    // FIX: This will now correctly fill the height defined by IntrinsicSize.Min.
                     .fillMaxHeight()
-                    .width(56.dp)
+                    .width(80.dp)
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                // Your placeholder or actual icon
+                // Icon entry
                 Box(
                     modifier = Modifier
                         .size(24.dp)
