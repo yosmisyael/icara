@@ -46,12 +46,13 @@ fun HomeScreen(
         }
     }
 
-    // Call the "Dumb" UI Composable, passing state down and events up
+    // Call the UI composable, passing state down and events up
     HomeScreenContent(
         showDialog = showDialog,
-        onTalkCardClick = { viewModel.onDialogTrigger() },
+        onNavigateTalk = { viewModel.onDialogTrigger() },
         onDismissDialog = { viewModel.onDialogDismiss() },
         onSelectDialogOpt = { viewModel.onLangSelected(it) },
+        onNavigateDictionary = { navController.navigate("dictionary") }
     )
 }
 
@@ -60,7 +61,8 @@ fun HomeScreenContent(
     showDialog: Boolean,
     onDismissDialog: () -> Unit,
     onSelectDialogOpt: (String) -> Unit,
-    onTalkCardClick: () -> Unit,
+    onNavigateTalk: () -> Unit,
+    onNavigateDictionary: () -> Unit,
 ) {
     if (showDialog) {
         SelectionDialog(
@@ -150,7 +152,7 @@ fun HomeScreenContent(
                     activeIconColors = activeIconCardColors,
                     defaultIconColors = defaultIconCardColors,
                     defaultColors = defaultMenuCardColors,
-                    onClick = { onTalkCardClick() },
+                    onClick = { onNavigateTalk() },
                 )
 
                 MenuCard(
@@ -161,7 +163,7 @@ fun HomeScreenContent(
                     activeIconColors = activeIconCardColors,
                     defaultIconColors = defaultIconCardColors,
                     defaultColors = defaultMenuCardColors,
-                    onClick = {}
+                    onClick = onNavigateDictionary,
                 )
             }
         }
@@ -248,6 +250,7 @@ fun HomeScreenPreview() {
         showDialog = false,
         onSelectDialogOpt = {},
         onDismissDialog = {},
-        onTalkCardClick = {}
+        onNavigateTalk = {},
+        onNavigateDictionary = {}
     )
 }

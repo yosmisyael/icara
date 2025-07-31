@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.icara.ui.screens.dictionary.DictionaryScreen
 import com.example.icara.ui.screens.home.HomeScreen
 import com.example.icara.ui.screens.talk.TalkScreen
 
@@ -17,7 +18,7 @@ fun MyAppNavHost() {
             HomeScreen(navController = navController)
         }
 
-        // Argument to pass into talk screen
+        // Navigation for talk screen
         composable(
             route = "talk/{lang}",
             arguments = listOf(navArgument("lang") { type = NavType.StringType })
@@ -29,6 +30,22 @@ fun MyAppNavHost() {
             )
         }
 
+        // Navigation for dictionary screen
+        composable("dictionary") {
+            DictionaryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onEntryClick = { word ->
+                    navController.navigate("dictionary_detail/$word")
+                }
+            )
+        }
 
+        // Navigation for dictionary entry detail
+        composable(
+            route = "dictionary_detail/{word}",
+            arguments = listOf(navArgument("word") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val word = backStackEntry.arguments?.getString("word") ?: ""
+        }
     }
 }

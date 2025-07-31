@@ -27,7 +27,10 @@ data class DictionaryEntry(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DictionaryScreen(onNavigateBack: () -> Unit = {}) {
+fun DictionaryScreen(
+    onNavigateBack: () -> Unit = {},
+    onEntryClick: (String) -> Unit = {},
+) {
     var searchText by remember { mutableStateOf("") }
     val dictionaryList = remember {
         listOf(
@@ -66,11 +69,6 @@ fun DictionaryScreen(onNavigateBack: () -> Unit = {}) {
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* TODO: Implement search */ }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Cari")
-                    }
-                },
             )
         }
     ) { paddingValues ->
@@ -82,34 +80,45 @@ fun DictionaryScreen(onNavigateBack: () -> Unit = {}) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(dictionaryList) { entry ->
-                DictionaryItem(entry = entry)
+                DictionaryItem(
+                    entry = entry,
+                    onClick = {}
+                )
             }
         }
     }
 }
 
 @Composable
-fun DictionaryItem(entry: DictionaryEntry) {
+fun DictionaryItem(entry: DictionaryEntry, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(12.dp), // A slightly larger radius looks nice
         colors = CardDefaults.cardColors(
             containerColor = if (entry.word == "Terimakasih") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
+        // This is the parent Row. It now controls the height of all its children.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                // FIX: Add this modifier to make all children match the height of the tallest one.
+                .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // This inner Row contains the text and its own padding.
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .weight(1f), // Use weight to allow the icon Box to have a fixed size
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), CircleShape)
-                        .wrapContentSize(Alignment.Center)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = entry.initialLetter,
@@ -121,7 +130,7 @@ fun DictionaryItem(entry: DictionaryEntry) {
                 Column {
                     Text(
                         text = entry.word,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -132,19 +141,21 @@ fun DictionaryItem(entry: DictionaryEntry) {
                     )
                 }
             }
-            // Placeholder for the icon on the right
+
+            // This is the icon Box.
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .padding(8.dp),
+                    // FIX: This will now correctly fill the height defined by IntrinsicSize.Min.
+                    .fillMaxHeight()
+                    .width(56.dp)
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                // You can replace this with your actual icon
+                // Your placeholder or actual icon
                 Box(
                     modifier = Modifier
                         .size(24.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
                 )
             }
         }
