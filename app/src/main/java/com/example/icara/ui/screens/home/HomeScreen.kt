@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -111,60 +112,92 @@ fun HomeScreenContent(
             }
         ) {
             paddingValues ->
-            Column(
+            Column (
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = paddingValues.calculateTopPadding())
                     .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                // active state card style
-                val activeMenuCardColors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                    .background(MaterialTheme.colorScheme.surface)
+            ){
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 16.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 16.dp
+                    )
+                ) {
+                    item {
+                        // active state card style
+                        val activeMenuCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
 
-                // default state card style
-                val defaultMenuCardColors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                )
+                        // default state card style
+                        val defaultMenuCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        )
 
-                // active state icon style
-                val activeIconCardColors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+                        // active state icon style
+                        val activeIconCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
 
-                // default state icon style
-                val defaultIconCardColors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
+                        // default state icon style
+                        val defaultIconCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
 
-                MenuCard(
-                    title = "Teman Komunikasi",
-                    description = "Bantu kamu mengobrol dengan Teman Dengar",
-                    imageResId = R.drawable.communicate,
-                    activeColors = activeMenuCardColors,
-                    activeIconColors = activeIconCardColors,
-                    defaultIconColors = defaultIconCardColors,
-                    defaultColors = defaultMenuCardColors,
-                    onClick = { onNavigateTalk() },
-                )
+                        MenuCard(
+                            title = "Teman Komunikasi",
+                            description = "Bantu kamu mengobrol dengan Teman Dengar",
+                            imageResId = R.drawable.communicate,
+                            activeColors = activeMenuCardColors,
+                            activeIconColors = activeIconCardColors,
+                            defaultIconColors = defaultIconCardColors,
+                            defaultColors = defaultMenuCardColors,
+                            onClick = { onNavigateTalk() },
+                        )
+                    }
 
-                MenuCard(
-                    title = "Kamus Isyarat",
-                    description = "Bantu kamu belajar bahasa isyarat",
-                    imageResId = R.drawable.dictionary,
-                    activeColors = activeMenuCardColors,
-                    activeIconColors = activeIconCardColors,
-                    defaultIconColors = defaultIconCardColors,
-                    defaultColors = defaultMenuCardColors,
-                    onClick = onNavigateDictionary,
-                )
+                    item {
+                        val activeMenuCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                        val defaultMenuCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        )
+                        val activeIconCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        val defaultIconCardColors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                        MenuCard(
+                            title = "Kamus Isyarat",
+                            description = "Bantu kamu belajar bahasa isyarat",
+                            imageResId = R.drawable.dictionary,
+                            activeColors = activeMenuCardColors,
+                            activeIconColors = activeIconCardColors,
+                            defaultIconColors = defaultIconCardColors,
+                            defaultColors = defaultMenuCardColors,
+                            onClick = onNavigateDictionary,
+                        )
+                    }
+                }
             }
         }
     }
