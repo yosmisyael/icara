@@ -65,6 +65,30 @@ fun HomeScreenContent(
     onNavigateTalk: () -> Unit,
     onNavigateDictionary: () -> Unit,
 ) {
+    // active state card style
+    val activeMenuCardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    )
+
+    // default state card style
+    val defaultMenuCardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )
+
+    // active state icon style
+    val activeIconCardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
+
+    // default state icon style
+    val defaultIconCardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    )
+
     if (showDialog) {
         SelectionDialog(
             title = "Pilih Bahasa Isyarat",
@@ -133,30 +157,6 @@ fun HomeScreenContent(
                     )
                 ) {
                     item {
-                        // active state card style
-                        val activeMenuCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-
-                        // default state card style
-                        val defaultMenuCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        )
-
-                        // active state icon style
-                        val activeIconCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-
-                        // default state icon style
-                        val defaultIconCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-
                         MenuCard(
                             title = "Teman Komunikasi",
                             description = "Bantu kamu mengobrol dengan Teman Dengar",
@@ -170,22 +170,6 @@ fun HomeScreenContent(
                     }
 
                     item {
-                        val activeMenuCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                        val defaultMenuCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        )
-                        val activeIconCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        val defaultIconCardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
                         MenuCard(
                             title = "Kamus Isyarat",
                             description = "Bantu kamu belajar bahasa isyarat",
