@@ -1,6 +1,7 @@
 package com.example.icara.ui.screens.talk
 
 import android.Manifest
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
@@ -30,6 +31,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.icara.viewmodels.TalkViewModel
 
@@ -40,16 +42,23 @@ fun TalkScreen(
     viewModel: TalkViewModel = viewModel(),
     lang: String,
 ) {
-    // States of permission
+    // states of permission
     var hasCameraPermission by remember { mutableStateOf(false) }
     var hasAudioPermission by remember { mutableStateOf(false) }
 
-    // Get context and lifecycle owner for CameraX
+    // get context and lifecycle owner for CameraX
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Remember a PreviewView instance
+    // remember a PreviewView instance
     val previewView = remember { PreviewView(context) }
+
+    // speech recording state
+    val isRecording by viewModel.isRecording.collectAsState()
+
+    // get hand landmark result
+    val handLandmarkerResult by viewModel.handLandmarkerResult.collectAsStateWithLifecycle()
+    Log.d("DEBUG", "Holistic result: ${handLandmarkerResult != null}")
 
     // Camera permission access
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -76,12 +85,12 @@ fun TalkScreen(
     // Request permissions and start the camera when they are granted
     LaunchedEffect(hasCameraPermission) {
         if (hasCameraPermission) {
+            viewModel.setupLandmarker(context)
             viewModel.startCamera(context, lifecycleOwner, previewView.surfaceProvider)
+            Log.d("DEBUG", "Camera started successfully")
+
         }
     }
-
-    // Speech recording state
-    val isRecording by viewModel.isRecording.collectAsState()
 
     Scaffold(
         topBar = {
@@ -153,10 +162,20 @@ fun TalkScreen(
                 chatBoxTitle = "Makna Isyaratmu",
                 transcriptText = "Selamat malam kabar saya baik",
                 cameraPreview = {
-                    AndroidView(
-                        factory = { previewView },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AndroidView(
+                            factory = { previewView },
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        handLandmarkerResult?.let { resultBundle ->
+                            LandmarkOverlay(
+                                resultBundle = resultBundle,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                    }
                 }
             )
             VoiceTranscriptCard(
