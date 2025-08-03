@@ -103,13 +103,14 @@ fun DictionaryScreenContent(
                     }
                 },
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
         ) {
             // active state card style
             val activeEntryCard = CardDefaults.cardColors(

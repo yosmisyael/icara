@@ -21,8 +21,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             ICaraTheme {
                 MyAppNavHost()
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                }
             }
         }
     }
