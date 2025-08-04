@@ -1,7 +1,6 @@
 package com.example.icara.ui.screens.talk
 
 import android.Manifest
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -33,6 +31,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.icara.ui.components.AudioWaveform
 import com.example.icara.viewmodels.TalkViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,12 +52,11 @@ fun TalkScreen(
     // remember a PreviewView instance
     val previewView = remember { PreviewView(context) }
 
-    // speech recording state
-    val isRecording by viewModel.isRecording.collectAsState()
+    // speech recognition ui state
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // get hand landmark result
     val handLandmarkerResult by viewModel.handLandmarkerResult.collectAsStateWithLifecycle()
-    Log.d("DEBUG", "Holistic result: ${handLandmarkerResult != null}")
 
     // Camera permission access
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -87,8 +85,6 @@ fun TalkScreen(
         if (hasCameraPermission) {
             viewModel.setupLandmarker(context)
             viewModel.startCamera(context, lifecycleOwner, previewView.surfaceProvider)
-            Log.d("DEBUG", "Camera started successfully")
-
         }
     }
 
@@ -181,15 +177,14 @@ fun TalkScreen(
             )
             VoiceTranscriptCard(
                 chatBoxTitle = "Teks Percakapan",
-                transcriptText = "Selamat malam bagaimana kabar Anda?",
-                isRecording = isRecording,
+                transcriptText = uiState.transcriptText.ifEmpty {
+                    if (uiState.isListening) "Mendengarkan..."
+                    else "Ketuk mikrofon untuk mulai merekam"
+                },
+                isListening = uiState.isListening,
                 onMicClick = {
                     if (hasAudioPermission) {
-                        if (isRecording) {
-                            viewModel.stopRecording()
-                        } else {
-                            viewModel.startRecording()
-                        }
+                        viewModel.toggleSpeechRecording(context)
                     } else {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
@@ -213,8 +208,7 @@ fun SignTranscriptCard(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
-        Column(
-        ) {
+        Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,11 +242,11 @@ fun SignTranscriptCard(
 fun VoiceTranscriptCard(
     chatBoxTitle: String,
     transcriptText: String,
-    isRecording: Boolean,
+    isListening: Boolean = false,
+    audioLevel: Float = 0f,
     onMicClick: () -> Unit,
 ) {
-    val buttonShape = if (isRecording) CircleShape else RoundedCornerShape(8.dp)
-    val micDescription = if (isRecording) "Klik untuk berhenti merekam" else "Klik untuk mulai merekam"
+    val buttonShape = if (isListening) CircleShape else RoundedCornerShape(8.dp)
 
     Card(
         modifier = Modifier
@@ -277,9 +271,11 @@ fun VoiceTranscriptCard(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
+
                 Text(
                     text = transcriptText,
                     style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -289,13 +285,15 @@ fun VoiceTranscriptCard(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = micDescription,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (isListening) {
+                    AudioWaveform(
+                        audioLevel = audioLevel,
+                        isListening = isListening,
+                        waveColor = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-                Spacer(modifier = Modifier.width(8.dp)) // Adds space between the text and button
+                Spacer(modifier = Modifier.width(8.dp))
 
                 FloatingActionButton(
                     onClick = onMicClick,
