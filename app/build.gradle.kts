@@ -78,8 +78,16 @@ dependencies {
     implementation("com.google.mediapipe:tasks-vision:0.10.26")
 
     // Add this line for the TFLite interpreter
-    implementation("org.tensorflow:tensorflow-lite:2.15.0")
-    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.15.0")
+    //implementation("org.tensorflow:tensorflow-lite:2.15.0")
+
+    // New LiteRT Dependencies (Successor TFlite)
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-gpu:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-support:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-metadata:1.4.0")
+
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
