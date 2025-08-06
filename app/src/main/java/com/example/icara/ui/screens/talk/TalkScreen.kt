@@ -49,6 +49,9 @@ fun TalkScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Collect the new predicted sign state
+    val predictedSign by viewModel.predictedSign.collectAsStateWithLifecycle()
+
     // remember a PreviewView instance
     val previewView = remember { PreviewView(context) }
 
@@ -157,7 +160,7 @@ fun TalkScreen(
             )
             SignTranscriptCard(
                 chatBoxTitle = "Makna Isyaratmu",
-                transcriptText = "Selamat malam kabar saya baik",
+                transcriptText = predictedSign,
                 cameraPreview = {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AndroidView(
