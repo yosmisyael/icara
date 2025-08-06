@@ -1,238 +1,73 @@
 package com.example.icara.viewmodels
 
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.util.Log
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
-import android.util.Size
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModel
 import com.example.icara.helper.HandLandmarkerHelper
-import com.google.mediapipe.tasks.core.Delegate
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.tensorflow.lite.Interpreter
+import java.io.FileInputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.util.concurrent.Executors
 
-data class TalkScreenUiState(
+// A dummy data class to match the uiState property in your TalkScreen
+data class AudioUiState(
     val transcriptText: String = "",
-    val isRecording: Boolean = false,
-    val isListening: Boolean = false,
-    val audioLevel: Float = 0f,
-    val error: String? = null
+    val isListening: Boolean = false
 )
 
 class TalkViewModel : ViewModel(), HandLandmarkerHelper.LandmarkerListener {
-    // speech recording state
-    private val _uiState = MutableStateFlow(TalkScreenUiState())
-    val uiState: StateFlow<TalkScreenUiState> = _uiState.asStateFlow()
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var baseTranscriptText: String = ""
-    private var currentLanguage: String = "id-ID"
 
-    // function to initialize speech recognizer
-    fun initializeSpeechRecognizer(context: Context, language: String = "id-ID") {
-        currentLanguage = language
-        if (SpeechRecognizer.isRecognitionAvailable(context)) {
-            speechRecognizer?.destroy()
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-            speechRecognizer?.setRecognitionListener(createRecognitionListener())
-        }
-    }
+    // --- MediaPipe Helper ---
+    private lateinit var handLandmarkerHelper: HandLandmarkerHelper
 
-    // function to create speech listener
-    private fun createRecognitionListener(): RecognitionListener {
-        return object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                viewModelScope.launch {
-                    _uiState.value = _uiState.value.copy(
-                        isListening = true,
-                        error = null
-                    )
-                }
-            }
+    // --- TFLite Interpreter ---
+    private var tfliteInterpreter: Interpreter? = null
 
-            override fun onBeginningOfSpeech() { }
-
-            override fun onRmsChanged(rmsdB: Float) {
-                Log.d("AUDIO", "audio level: $rmsdB")
-                viewModelScope.launch {
-                    _uiState.value = _uiState.value.copy(
-                        audioLevel = rmsdB
-                    )
-                }
-            }
-
-            override fun onBufferReceived(buffer: ByteArray?) { }
-
-            override fun onEndOfSpeech() {
-                viewModelScope.launch {
-                    _uiState.value = _uiState.value.copy(
-                        isListening = false,
-                        audioLevel = 0f,
-                    )
-                }
-            }
-
-            override fun onError(error: Int) {
-                val errorMessage = when (error) {
-                    SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-                    SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-                    SpeechRecognizer.ERROR_NETWORK -> "Network error"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "No match found"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy"
-                    SpeechRecognizer.ERROR_SERVER -> "Server error"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-                    else -> "Unknown error"
-                }
-
-                viewModelScope.launch {
-                    _uiState.value = _uiState.value.copy(
-                        isRecording = false,
-                        isListening = false,
-                        error = errorMessage
-                    )
-                }
-            }
-
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val transcribedText = matches?.firstOrNull() ?: ""
-
-                viewModelScope.launch {
-                    val fullTextTranscribe = if (baseTranscriptText.isEmpty()) {
-                        transcribedText
-                    } else {
-                        "$baseTranscriptText $transcribedText"
-                    }
-
-                    baseTranscriptText = fullTextTranscribe
-
-                    _uiState.value = _uiState.value.copy(
-                        transcriptText = fullTextTranscribe,
-                        isRecording = false,
-                        isListening = false,
-                        audioLevel = 0f,
-                        error = null
-                    )
-                }
-            }
-
-            override fun onPartialResults(partialResults: Bundle?) {
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val partialText = matches?.firstOrNull() ?: ""
-
-                viewModelScope.launch {
-                    val displayText = if (baseTranscriptText.isEmpty()) {
-                        partialText
-                    } else {
-                        "$baseTranscriptText $partialText"
-                    }
-
-                    _uiState.value = _uiState.value.copy(
-                        transcriptText = displayText
-                    )
-                }
-            }
-
-            override fun onEvent(eventType: Int, params: Bundle?) {
-                // Handle other events if needed
-            }
-        }
-    }
-
-    // thread for image analysis executor
-    private val imageAnalysisExecutor = Executors.newFixedThreadPool(2)
-
-    // hand landmarker
-    private var handLandmarkerHelper: HandLandmarkerHelper? = null
+    // --- Live Data for UI ---
     private val _handLandmarkerResult = MutableStateFlow<HandLandmarkerHelper.ResultBundle?>(null)
-    val handLandmarkerResult: StateFlow<HandLandmarkerHelper.ResultBundle?> = _handLandmarkerResult
+    val handLandmarkerResult = _handLandmarkerResult.asStateFlow()
 
-    // function to toggle speech recording
-    fun toggleSpeechRecording(context: Context) {
-        if (_uiState.value.isRecording) {
-            stopSpeechRecording()
-        } else {
-            startSpeechRecording(context)
-        }
-    }
+    private val _predictedSign = MutableStateFlow("...")
+    val predictedSign = _predictedSign.asStateFlow()
 
-    private fun startSpeechRecording(context: Context) {
-        if (speechRecognizer == null) {
-            initializeSpeechRecognizer(context, currentLanguage)
-        }
+    // Added to match your TalkScreen's call to viewModel.uiState
+    private val _uiState = MutableStateFlow(AudioUiState())
+    val uiState: StateFlow<AudioUiState> = _uiState.asStateFlow()
 
-        val speechLanguage = when (currentLanguage.lowercase()) {
-            "en" -> "en-US"
-            "id" -> "id-ID"
-            else -> if (currentLanguage.contains("-")) currentLanguage else "$currentLanguage-${currentLanguage.uppercase()}"
-        }
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLanguage)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-        }
+    // --- LSTM Model & Data Collection ---
+    private val landmarkSequence = mutableListOf<Float>()
+    private val SEQUENCE_LENGTH = 30
+    // UPDATED: Features for TWO hands (2 hands * 21 landmarks * 3 coordinates)
+    private val FEATURES_PER_FRAME = 126
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isRecording = true,
-                error = null
-            )
-        }
+    private val labels = listOf(
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+    )
 
-        speechRecognizer?.startListening(intent)
-    }
-
-    private fun stopSpeechRecording() {
-        speechRecognizer?.stopListening()
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isRecording = false,
-                isListening = false
-            )
-        }
-    }
-
-    fun clearTranscript() {
-        _uiState.value = _uiState.value.copy(
-            transcriptText = "",
-            error = null
+    fun setupLandmarker(context: Context) {
+        setupTfliteInterpreter(context)
+        handLandmarkerHelper = HandLandmarkerHelper(
+            context = context,
+            handLandmarkerHelperListener = this
         )
     }
 
-    fun setLanguage(language: String) {
-        currentLanguage = language
-    }
-
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-
-    fun setupLandmarker(context: Context) {
-        Log.d("DEBUG", "setup hand landmarker")
-        handLandmarkerHelper?.clearHandLandmarker()
-        handLandmarkerHelper = HandLandmarkerHelper(context, handLandmarkerHelperListener = this)
-    }
-
-    // start camera function
+    /**
+     * This function now contains all the CameraX logic, as required by your TalkScreen.
+     */
     fun startCamera(
         context: Context,
         lifecycleOwner: LifecycleOwner,
@@ -241,66 +76,143 @@ class TalkViewModel : ViewModel(), HandLandmarkerHelper.LandmarkerListener {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
         cameraProviderFuture.addListener({
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+            val cameraProvider = cameraProviderFuture.get()
 
-            // camera preview use case
-            val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(surfaceProvider)
-                }
+            // 1. Preview Use Case
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(surfaceProvider)
+            }
 
-            // imageAnalysis use case, for getting frames for MediaPipe
+            // 2. Image Analysis Use Case
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setResolutionSelector(
-                    ResolutionSelector.Builder()
-                        .setResolutionStrategy(
-                            ResolutionStrategy(
-                                Size(640, 480),
-                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
-                            )
-                        )
-                        .build()
-                )
-                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                 .build()
                 .also {
-                    it.setAnalyzer(imageAnalysisExecutor) { imageProxy ->
-                        val isFrontCamera = cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
-                        handLandmarkerHelper?.detectLiveStream(imageProxy, isFrontCamera)
+                    it.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                        if (::handLandmarkerHelper.isInitialized) {
+                            handLandmarkerHelper.detectLiveStream(imageProxy, isFrontCamera = true)
+                        } else {
+                            imageProxy.close()
+                        }
                     }
                 }
 
-            // select the front camera
+            // 3. Select camera and bind to lifecycle
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
             try {
-                // Unbind everything before rebinding
                 cameraProvider.unbindAll()
-
-                // Bind the use cases to the camera
                 cameraProvider.bindToLifecycle(
-                    lifecycleOwner, cameraSelector, preview, imageAnalyzer
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview,
+                    imageAnalyzer
                 )
             } catch (e: Exception) {
-                Log.e("CameraX", "Use case binding failed", e)
+                Log.e("TalkViewModel", "Camera binding failed", e)
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
+
     override fun onResults(resultBundle: HandLandmarkerHelper.ResultBundle) {
         _handLandmarkerResult.value = resultBundle
+
+        val handsResult = resultBundle.results.first()
+        val landmarksForFrame = mutableListOf<Float>()
+        val emptyHandLandmarks = FloatArray(63) { 0f }.toList() // 21 landmarks * 3 coords
+
+        if (handsResult.landmarks().isEmpty()) {
+            // If no hands are detected, add placeholders for both
+            landmarksForFrame.addAll(emptyHandLandmarks)
+            landmarksForFrame.addAll(emptyHandLandmarks)
+        } else {
+            // Process the first hand
+            val firstHand = handsResult.landmarks()[0]
+            landmarksForFrame.addAll(firstHand.flatMap { listOf(it.x(), it.y(), it.z()) })
+
+            // Process the second hand if it exists, otherwise add a placeholder
+            if (handsResult.landmarks().size > 1) {
+                val secondHand = handsResult.landmarks()[1]
+                landmarksForFrame.addAll(secondHand.flatMap { listOf(it.x(), it.y(), it.z()) })
+            } else {
+                landmarksForFrame.addAll(emptyHandLandmarks)
+            }
+        }
+
+        // Add the combined landmarks for the frame to the sequence
+        landmarkSequence.addAll(landmarksForFrame)
+
+        // Trim the sequence if it's too long
+        while (landmarkSequence.size > SEQUENCE_LENGTH * FEATURES_PER_FRAME) {
+            landmarkSequence.removeAt(0)
+        }
+
+        if (landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME) {
+            runInference()
+            // Optional: Clear a portion of the sequence for non-overlapping windows
+            // For a sliding window, you might remove just one frame's worth of data
+            // landmarkSequence.subList(0, FEATURES_PER_FRAME).clear()
+        }
     }
 
-    override fun onError(error: String) {
-        Log.e("TalkViewModel", "Hand Landmarker Error: $error")
+    private fun runInference() {
+        if (tfliteInterpreter == null) {
+            _predictedSign.value = "Interpreter not ready"
+            return
+        }
+        // Input buffer size is now correctly calculated based on the doubled FEATURES_PER_FRAME
+        val inputBuffer = ByteBuffer.allocateDirect(1 * SEQUENCE_LENGTH * FEATURES_PER_FRAME * 4)
+        inputBuffer.order(ByteOrder.nativeOrder())
+
+        // The sequence is already the correct size
+        for (value in landmarkSequence) {
+            inputBuffer.putFloat(value)
+        }
+
+        val outputBuffer = Array(1) { FloatArray(labels.size) }
+
+        try {
+            tfliteInterpreter?.run(inputBuffer, outputBuffer)
+        } catch (e: Exception) {
+            _predictedSign.value = "Inference Error"
+            Log.e("TFLiteError", "Error during inference: ", e)
+            return
+        }
+        val probabilities = outputBuffer[0]
+        val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
+        if (maxIndex != -1 && maxIndex < labels.size) {
+            _predictedSign.value = labels[maxIndex]
+        }
     }
 
-    // clear ViedModel function
+    override fun onError(error: String) { _predictedSign.value = error }
+
+    private fun setupTfliteInterpreter(context: Context) {
+        try {
+            val assetFileDescriptor = context.assets.openFd("best_model_lstm_hands.tflite")
+            val fileInputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
+            val fileChannel = fileInputStream.channel
+            val startOffset = assetFileDescriptor.startOffset
+            val declaredLength = assetFileDescriptor.declaredLength
+            val modelBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+            val options = Interpreter.Options()
+            tfliteInterpreter = Interpreter(modelBuffer, options)
+            _predictedSign.value = "Ready"
+        } catch (e: Exception) {
+            val errorMessage = "Model load error: ${e.message}"
+            Log.e("TFLiteError", errorMessage, e)
+            _predictedSign.value = errorMessage
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
-        handLandmarkerHelper?.clearHandLandmarker()
-        speechRecognizer?.destroy()
+        handLandmarkerHelper.clearHandLandmarker()
+        tfliteInterpreter?.close()
+    }
+
+    // Dummy function to prevent a crash from your UI code calling it.
+    fun toggleSpeechRecording(context: Context) {
+        // You can add your speech-to-text logic here later.
     }
 }

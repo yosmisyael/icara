@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.icara"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -76,6 +76,10 @@ dependencies {
 
     // MP library
     implementation("com.google.mediapipe:tasks-vision:0.10.26")
+
+    // Add this line for the TFLite interpreter
+    implementation("org.tensorflow:tensorflow-lite:2.15.0")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.15.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
