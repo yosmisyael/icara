@@ -30,6 +30,13 @@ class HandLandmarkerHelper(
     val targetFPS = 30
     val frameInterval = 1000L / targetFPS
 
+    // pre-allocated transformation matrix to avoid garbage collection
+    private val transformMatrix = Matrix()
+
+    // frame skipping counter for additional performance boost
+    private var frameCounter = 0
+    private val PROCESS_EVERY_N_FRAMES = 2 // Process every 2nd frame
+
     data class ResultBundle(
         val results: List<HandLandmarkerResult>,
         val inferenceTime: Long,
@@ -65,7 +72,7 @@ class HandLandmarkerHelper(
 
         val optBuilder = HandLandmarker.HandLandmarkerOptions.builder()
             .setBaseOptions(baseOpt)
-            .setMinHandDetectionConfidence(0.5F)
+            .setMinHandDetectionConfidence(0.6F)
             .setMinTrackingConfidence(0.5F)
             .setMinHandPresenceConfidence(0.5F)
             .setNumHands(2)
@@ -114,27 +121,7 @@ class HandLandmarkerHelper(
         return try {
             when (imageProxy.format) {
                 ImageFormat.YUV_420_888 -> {
-                    // Optimized YUV conversion
-                    val yBuffer = imageProxy.planes[0].buffer
-                    val uBuffer = imageProxy.planes[1].buffer
-                    val vBuffer = imageProxy.planes[2].buffer
-
-                    val ySize = yBuffer.remaining()
-                    val uSize = uBuffer.remaining()
-                    val vSize = vBuffer.remaining()
-
-                    val nv21 = ByteArray(ySize + uSize + vSize)
-
-                    yBuffer.get(nv21, 0, ySize)
-                    vBuffer.get(nv21, ySize, vSize)
-                    uBuffer.get(nv21, ySize + vSize, uSize)
-
-                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
-                    val out = ByteArrayOutputStream()
-                    // Reduced JPEG quality for faster conversion (still good enough for ML)
-                    yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 85, out)
-                    val jpegArray = out.toByteArray()
-                    android.graphics.BitmapFactory.decodeByteArray(jpegArray, 0, jpegArray.size)
+                    convertYuvToBitmap(imageProxy)
                 }
                 else -> {
                     // For other formats, try direct buffer conversion with proper size calculation
@@ -143,16 +130,20 @@ class HandLandmarkerHelper(
                     val rowStride = imageProxy.planes[0].rowStride
                     val rowPadding = rowStride - pixelStride * imageProxy.width
 
-                    val bitmapWidth = imageProxy.width + rowPadding / pixelStride
-                    val bitmap = createBitmap(bitmapWidth, imageProxy.height)
-                    bitmap.copyPixelsFromBuffer(buffer)
-
-                    // Crop to actual image size if there was padding
-                    if (rowPadding > 0) {
-                        Bitmap.createBitmap(bitmap, 0, 0, imageProxy.width, imageProxy.height)
+                    val bitmap = if (rowPadding == 0) {
+                        // No padding, direct conversion
+                        createBitmap(imageProxy.width, imageProxy.height).apply {
+                            copyPixelsFromBuffer(buffer)
+                        }
                     } else {
-                        bitmap
+                        // Handle row padding
+                        val bitmapWidth = imageProxy.width + rowPadding / pixelStride
+                        val paddedBitmap = createBitmap(bitmapWidth, imageProxy.height).apply {
+                            copyPixelsFromBuffer(buffer)
+                        }
+                        Bitmap.createBitmap(paddedBitmap, 0, 0, imageProxy.width, imageProxy.height)
                     }
+                    bitmap
                 }
             }
         } catch (e: Exception) {
@@ -166,6 +157,13 @@ class HandLandmarkerHelper(
             imageProxy.close()
             return
         }
+
+        // Frame skipping for additional performance boost
+        /* frameCounter++
+        if (frameCounter % PROCESS_EVERY_N_FRAMES != 0) {
+            imageProxy.close()
+            return
+        } */
 
         val currentTime = SystemClock.uptimeMillis()
         if (currentTime - lastProcessTime < frameInterval) {
@@ -188,26 +186,99 @@ class HandLandmarkerHelper(
         val conversionTime = SystemClock.uptimeMillis() - startTime
         Log.d("PERFORMANCE", "Bitmap conversion time: ${conversionTime}ms")
 
-        val matrix = Matrix().apply {
-            postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+        // reuse transformation matrix
+        transformMatrix.reset()
+        transformMatrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
 
-            if (isFrontCamera) {
-                postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
-            }
+        if (isFrontCamera) {
+            transformMatrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
         }
 
         val rotatedBitmap = Bitmap.createBitmap(
-            bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+            bitmap, 0, 0, bitmap.width, bitmap.height, transformMatrix, false // Set to false for better performance
         )
 
         val mpImage = BitmapImageBuilder(rotatedBitmap).build()
         val frameTime = SystemClock.uptimeMillis()
-        handLandmarker?.detectAsync(mpImage, frameTime)
-        imageProxy.close()
+
+        try {
+            handLandmarker?.detectAsync(mpImage, frameTime)
+        } catch (e: Exception) {
+            Log.e("HandLandmarkerHelper", "Error during detection: ${e.message}")
+        } finally {
+            imageProxy.close()
+        }
     }
 
     fun clearHandLandmarker() {
         handLandmarker?.close()
         handLandmarker = null
     }
+
+    /**
+     * Function to perform direct YUV to Bitmap conversion without JPEG intermediate step
+     */
+    private fun convertYuvToBitmap(imageProxy: ImageProxy): Bitmap? {
+        val yBuffer = imageProxy.planes[0].buffer
+        val uBuffer = imageProxy.planes[1].buffer
+        val vBuffer = imageProxy.planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+
+        // Convert YUV to RGB directly
+        val yuvBytes = ByteArray(ySize + uSize + vSize)
+        yBuffer.get(yuvBytes, 0, ySize)
+        uBuffer.get(yuvBytes, ySize, uSize)
+        vBuffer.get(yuvBytes, ySize + uSize, vSize)
+
+        val width = imageProxy.width
+        val height = imageProxy.height
+        val pixels = IntArray(width * height)
+
+        // Simple YUV to RGB conversion (faster than JPEG route)
+        convertYuvToRgb(yuvBytes, pixels, width, height)
+
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    /**
+     * Function to convert YUV420 to RGB conversion
+     */
+    private fun convertYuvToRgb(yuv: ByteArray, rgb: IntArray, width: Int, height: Int) {
+        val frameSize = width * height
+        var j = 0
+        var yp = 0
+
+        for (y in 0 until height) {
+            var uvp = frameSize + (y shr 1) * width
+            var u = 0
+            var v = 0
+
+            for (x in 0 until width) {
+                val yValue = (0xff and yuv[yp].toInt()) - 16
+                if (yValue < 0) continue
+
+                if ((x and 1) == 0) {
+                    v = (0xff and yuv[uvp++].toInt()) - 128
+                    u = (0xff and yuv[uvp++].toInt()) - 128
+                }
+
+                val y1192 = 1192 * yValue
+                var r = (y1192 + 1634 * v)
+                var g = (y1192 - 833 * v - 400 * u)
+                var b = (y1192 + 2066 * u)
+
+                r = if (r < 0) 0 else if (r > 262143) 262143 else r
+                g = if (g < 0) 0 else if (g > 262143) 262143 else g
+                b = if (b < 0) 0 else if (b > 262143) 262143 else b
+
+                rgb[j++] = (-0x1000000 or ((r shl 6) and 0xff0000) or
+                        ((g shr 2) and 0xff00) or ((b shr 10) and 0xff))
+                yp++
+            }
+        }
+    }
+
 }

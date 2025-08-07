@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -61,6 +64,9 @@ fun TalkScreen(
     // get hand landmark result
     val handLandmarkerResult by viewModel.handLandmarkerResult.collectAsStateWithLifecycle()
 
+    // handle setup state
+    var isSetupComplete by remember { mutableStateOf(false) }
+
     // Camera permission access
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -77,17 +83,54 @@ fun TalkScreen(
         }
     )
 
+    // Handle lifecycle events properly
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (hasCameraPermission && !isSetupComplete) {
+                        viewModel.onResume(context)
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.onPause()
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // Request permissions when the screen first appears
     LaunchedEffect(key1 = true) {
         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
-    // Request permissions and start the camera when they are granted
-    LaunchedEffect(hasCameraPermission) {
-        if (hasCameraPermission) {
+    // Setup and start camera when permissions are granted
+    LaunchedEffect(hasCameraPermission, isSetupComplete) {
+        if (hasCameraPermission && !isSetupComplete) {
             viewModel.setupLandmarker(context)
+            isSetupComplete = true
+        }
+    }
+
+    // Start camera after setup is complete
+    LaunchedEffect(isSetupComplete, hasCameraPermission) {
+        if (isSetupComplete && hasCameraPermission) {
             viewModel.startCamera(context, lifecycleOwner, previewView.surfaceProvider)
+        }
+    }
+
+    // Reset when navigating back
+    DisposableEffect(Unit) {
+        onDispose {
+            isSetupComplete = false
         }
     }
 
