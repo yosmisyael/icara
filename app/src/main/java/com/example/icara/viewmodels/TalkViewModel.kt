@@ -112,11 +112,17 @@ class TalkViewModel : ViewModel(), HandLandmarkerHelper.LandmarkerListener {
         return object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 viewModelScope.launch {
-                    _uiState.value = _uiState.value.copy(isListening = true, error = null)
+                    _uiState.value = _uiState.value.copy(
+                        isListening = true,
+                        error = null,
+                        transcriptText = "",
+                    )
                 }
             }
 
-            override fun onBeginningOfSpeech() {}
+            override fun onBeginningOfSpeech() {
+
+            }
 
             override fun onRmsChanged(rmsdB: Float) {
                 viewModelScope.launch {
@@ -158,14 +164,9 @@ class TalkViewModel : ViewModel(), HandLandmarkerHelper.LandmarkerListener {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val transcribedText = matches?.firstOrNull() ?: ""
                 viewModelScope.launch {
-                    val fullTextTranscribe = if (baseTranscriptText.isEmpty()) {
-                        transcribedText
-                    } else {
-                        "$baseTranscriptText $transcribedText"
-                    }
-                    baseTranscriptText = fullTextTranscribe
+                    baseTranscriptText = transcribedText
                     _uiState.value = _uiState.value.copy(
-                        transcriptText = fullTextTranscribe,
+                        transcriptText = transcribedText,
                         isRecording = false,
                         isListening = false,
                         audioLevel = 0f,
@@ -178,12 +179,7 @@ class TalkViewModel : ViewModel(), HandLandmarkerHelper.LandmarkerListener {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val partialText = matches?.firstOrNull() ?: ""
                 viewModelScope.launch {
-                    val displayText = if (baseTranscriptText.isEmpty()) {
-                        partialText
-                    } else {
-                        "$baseTranscriptText $partialText"
-                    }
-                    _uiState.value = _uiState.value.copy(transcriptText = displayText)
+                    _uiState.value = _uiState.value.copy(transcriptText = partialText)
                 }
             }
 

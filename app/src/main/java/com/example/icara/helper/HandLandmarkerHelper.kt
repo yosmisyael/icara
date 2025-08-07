@@ -20,7 +20,7 @@ import java.io.ByteArrayOutputStream
 
 class HandLandmarkerHelper(
     val context: Context,
-    var currentHardware: Delegate = Delegate.CPU,
+    var currentHardware: Delegate = Delegate.GPU,
     val handLandmarkerHelperListener: LandmarkerListener,
 ) {
     private var handLandmarker: HandLandmarker? = null
