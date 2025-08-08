@@ -22,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -33,6 +35,10 @@ fun SignLanguageSelector(modifier: Modifier = Modifier) {
     val options = listOf("BISINDO", "SIBI")
     var selectedOptionText by remember { mutableStateOf(options[0]) }
 
+    // track parent width
+    var buttonWidth by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+
     Box(
         modifier = modifier.wrapContentSize(Alignment.TopStart)
     ) {
@@ -42,12 +48,16 @@ fun SignLanguageSelector(modifier: Modifier = Modifier) {
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ),
+            modifier = Modifier.onSizeChanged {
+                buttonWidth = with(density) { it.width.toDp() }
+            },
         ) {
             Icon(
                 imageVector = Icons.Filled.Translate,
                 contentDescription = "Pilih Bahasa Isyarat",
                 modifier = Modifier.size(18.dp),
             )
+
             Spacer(modifier = Modifier.width(8.dp))
 
             // display the currently selected option
@@ -66,6 +76,7 @@ fun SignLanguageSelector(modifier: Modifier = Modifier) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            modifier = Modifier.width(buttonWidth)
         ) {
             DropdownMenuItem(
                 text = { Text("BISINDO") },

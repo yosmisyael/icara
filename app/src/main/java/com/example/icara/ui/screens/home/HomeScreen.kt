@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.icara.R
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +30,8 @@ import com.example.icara.ui.components.SelectionDialog
 import com.example.icara.viewmodels.HomeViewModel
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
+import com.example.icara.ui.components.DialogOption
+import com.example.icara.ui.components.UnderDevelopmentDialog
 
 @Composable
 fun HomeScreen(
@@ -38,7 +39,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     // Collect state from the ViewModel
-    val showDialog by viewModel.showLangDialog.collectAsState()
+    val showDialog by viewModel.showLangOptDialog.collectAsState()
+    val showSysDevDialog by viewModel.showSysDevDialog.collectAsState()
 
     // Listen for navigation events
     LaunchedEffect(Unit) {
@@ -50,18 +52,22 @@ fun HomeScreen(
     // Call the UI composable, passing state down and events up
     HomeScreenContent(
         showDialog = showDialog,
-        onNavigateTalk = { viewModel.onDialogTrigger() },
-        onDismissDialog = { viewModel.onDialogDismiss() },
-        onSelectDialogOpt = { viewModel.onLangSelected(it) },
-        onNavigateDictionary = { navController.navigate("dictionary") }
+        showSysDevDialog = showSysDevDialog,
+        onNavigateTalk = { viewModel.onClickLangOptDialog() },
+        onLangOptDialogDismiss = { viewModel.onDismissLangOptDialog() },
+        onSelectDialogOpt = { viewModel.onClickLangOpt(it) },
+        onNavigateDictionary = { navController.navigate("dictionary") },
+        onDismissSysDevDialog = { viewModel.onDismissSysDevDialog() }
     )
 }
 
 @Composable
 fun HomeScreenContent(
     showDialog: Boolean,
-    onDismissDialog: () -> Unit,
-    onSelectDialogOpt: (String) -> Unit,
+    showSysDevDialog: Boolean,
+    onDismissSysDevDialog: () -> Unit,
+    onLangOptDialogDismiss: () -> Unit,
+    onSelectDialogOpt: (DialogOption) -> Unit,
     onNavigateTalk: () -> Unit,
     onNavigateDictionary: () -> Unit,
 ) {
@@ -92,10 +98,17 @@ fun HomeScreenContent(
     if (showDialog) {
         SelectionDialog(
             title = "Pilih Bahasa Isyarat",
-            onDismissRequest = onDismissDialog,
-            onOptionSelected = onSelectDialogOpt,
-            options = listOf("BISINDO", "SIBI"),
+            onDismissRequest = onLangOptDialogDismiss,
+            options = listOf(
+                DialogOption.Enabled("BISINDO"),
+                DialogOption.Disabled("SIBI")
+            ),
+            onAction = onSelectDialogOpt
         )
+    }
+
+    if (showSysDevDialog) {
+        UnderDevelopmentDialog(onDismissSysDevDialog)
     }
 
     Box(
@@ -135,6 +148,7 @@ fun HomeScreenContent(
                 }
             }
         ) {
+            // main menu content
             paddingValues ->
             Column (
                 modifier = Modifier
@@ -258,16 +272,4 @@ fun MenuCard(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    HomeScreenContent(
-        showDialog = false,
-        onSelectDialogOpt = {},
-        onDismissDialog = {},
-        onNavigateTalk = {},
-        onNavigateDictionary = {}
-    )
 }
