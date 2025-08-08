@@ -4,14 +4,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,33 +28,63 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.icara.ui.screens.talk.MaximizedState
 
 @Composable
 fun SignTranscriptCard(
+    modifier: Modifier = Modifier,
+    currentMaximizedState: MaximizedState,
+    onToggleMaximize: () -> Unit,
     chatBoxTitle: String,
     transcriptText: String,
     cameraPreview: @Composable () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val isMaximized = currentMaximizedState == MaximizedState.SIGN
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        ),
     ) {
-        Column {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // camera preview
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
+                modifier = if (isMaximized)  {
+                    Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                }
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.DarkGray),
                 contentAlignment = Alignment.Center
             ) {
                 cameraPreview()
+                IconButton(
+                    onClick = onToggleMaximize,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (isMaximized) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                        contentDescription = if (isMaximized) "Minimize" else "Maximize"
+                    )
+                }
             }
+
+            // collapsable section
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

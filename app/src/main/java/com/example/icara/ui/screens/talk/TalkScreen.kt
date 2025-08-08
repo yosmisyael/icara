@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -26,15 +27,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.icara.ui.components.SignLanguageSelector
 import com.example.icara.ui.components.SignTranscriptCard
+import com.example.icara.ui.components.UnderDevelopmentDialog
 import com.example.icara.ui.components.VoiceTranscriptCard
 import com.example.icara.viewmodels.TalkViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+enum class MaximizedState {
+    SIGN, VOICE, NONE
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun TalkScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: TalkViewModel = viewModel(),
 ) {
+    var maximizedCard by remember { mutableStateOf(MaximizedState.NONE) }
+
     // states of permission
     var hasCameraPermission by remember { mutableStateOf(false) }
     var hasAudioPermission by remember { mutableStateOf(false) }
@@ -84,6 +92,9 @@ fun TalkScreen(
             viewModel.startCamera(context, lifecycleOwner, previewView.surfaceProvider)
         }
     }
+
+    // dialog state
+    var showUnderDevelopmentDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -136,43 +147,147 @@ fun TalkScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            SignTranscriptCard(
-                chatBoxTitle = "Makna Isyaratmu",
-                transcriptText = predictedSign,
-                cameraPreview = {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AndroidView(
-                            factory = { previewView },
-                            modifier = Modifier.fillMaxSize()
-                        )
+            when (maximizedCard) {
+                MaximizedState.SIGN -> {
+                    SignTranscriptCard(
+                        modifier = Modifier.weight(1f),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.NONE },
+                        chatBoxTitle = "Makna Isyaratmu",
+                        transcriptText = predictedSign,
+                        cameraPreview = {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AndroidView(
+                                    factory = { previewView },
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-                        handLandmarkerResult?.let { resultBundle ->
-                            LandmarkOverlay(
-                                resultBundle = resultBundle,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                                handLandmarkerResult?.let { resultBundle ->
+                                    LandmarkOverlay(
+                                        resultBundle = resultBundle,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
                         }
+                    )
 
-                    }
+                    VoiceTranscriptCard(
+                        modifier = Modifier.height(80.dp),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
+                        chatBoxTitle = "Teks Percakapan",
+                        transcriptText = uiState.transcriptText.ifEmpty {
+                            if (uiState.isListening) "Mendengarkan..."
+                            else "Ketuk mikrofon untuk mulai merekam"
+                        },
+                        isListening = uiState.isListening,
+                        onMicClick = {
+                            if (hasAudioPermission) {
+                                viewModel.toggleSpeechRecording(context)
+                            } else {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        onSignLanguageClick = { showUnderDevelopmentDialog = true },
+                    )
                 }
-            )
 
-            VoiceTranscriptCard(
-                chatBoxTitle = "Teks Percakapan",
-                transcriptText = uiState.transcriptText.ifEmpty {
-                    if (uiState.isListening) "Mendengarkan..."
-                    else "Ketuk mikrofon untuk mulai merekam"
-                },
-                isListening = uiState.isListening,
-                onMicClick = {
-                    if (hasAudioPermission) {
-                        viewModel.toggleSpeechRecording(context)
-                    } else {
-                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
+                MaximizedState.VOICE -> {
+                    SignTranscriptCard(
+                        modifier = Modifier.height(80.dp),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
+                        chatBoxTitle = "Makna Isyaratmu",
+                        transcriptText = predictedSign,
+                        cameraPreview = {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AndroidView(
+                                    factory = { previewView },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                handLandmarkerResult?.let { resultBundle ->
+                                    LandmarkOverlay(
+                                        resultBundle = resultBundle,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    VoiceTranscriptCard(
+                        modifier = Modifier.weight(1f),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.NONE },
+                        chatBoxTitle = "Teks Percakapan",
+                        transcriptText = uiState.transcriptText.ifEmpty {
+                            if (uiState.isListening) "Mendengarkan..."
+                            else "Ketuk mikrofon untuk mulai merekam"
+                        },
+                        isListening = uiState.isListening,
+                        onMicClick = {
+                            if (hasAudioPermission) {
+                                viewModel.toggleSpeechRecording(context)
+                            } else {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        onSignLanguageClick = { showUnderDevelopmentDialog = true },
+                    )
                 }
-            )
+
+                MaximizedState.NONE -> {
+                    SignTranscriptCard(
+                        modifier = Modifier.weight(1f),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
+                        chatBoxTitle = "Makna Isyaratmu",
+                        transcriptText = predictedSign,
+                        cameraPreview = {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AndroidView(
+                                    factory = { previewView },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                handLandmarkerResult?.let { resultBundle ->
+                                    LandmarkOverlay(
+                                        resultBundle = resultBundle,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    VoiceTranscriptCard(
+                        modifier = Modifier.weight(1f),
+                        currentMaximizedState = maximizedCard,
+                        onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
+                        chatBoxTitle = "Teks Percakapan",
+                        transcriptText = uiState.transcriptText.ifEmpty {
+                            if (uiState.isListening) "Mendengarkan..."
+                            else "Ketuk mikrofon untuk mulai merekam"
+                        },
+                        isListening = uiState.isListening,
+                        onMicClick = {
+                            if (hasAudioPermission) {
+                                viewModel.toggleSpeechRecording(context)
+                            } else {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        onSignLanguageClick = { showUnderDevelopmentDialog = true },
+                    )
+                }
+            }
         }
+    }
+
+    if (showUnderDevelopmentDialog) {
+        UnderDevelopmentDialog(onDismiss = { showUnderDevelopmentDialog = false })
     }
 }
 
