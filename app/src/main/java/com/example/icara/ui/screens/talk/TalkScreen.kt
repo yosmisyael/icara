@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,7 +40,6 @@ import com.example.icara.viewmodels.TalkViewModel
 fun TalkScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: TalkViewModel = viewModel(),
-    lang: String,
 ) {
     // states of permission
     var hasCameraPermission by remember { mutableStateOf(false) }
@@ -61,7 +61,7 @@ fun TalkScreen(
     // get hand landmark result
     val handLandmarkerResult by viewModel.handLandmarkerResult.collectAsStateWithLifecycle()
 
-    // Camera permission access
+    // camera permission access
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -69,7 +69,7 @@ fun TalkScreen(
         }
     )
 
-    // Audio permission access
+    // audio permission access
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -77,13 +77,13 @@ fun TalkScreen(
         }
     )
 
-    // Request permissions when the screen first appears
+    // request permissions when the screen first appears
     LaunchedEffect(key1 = true) {
         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
-    // Request permissions and start the camera when they are granted
+    // request permissions and start the camera when they are granted
     LaunchedEffect(hasCameraPermission) {
         if (hasCameraPermission) {
             viewModel.setupLandmarker(context)
@@ -117,26 +117,9 @@ fun TalkScreen(
                     }
                 },
                 actions = {
-                    Button(
-                        onClick = {},
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Videocam,
-                            contentDescription = "Camera Status",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Kamera Aktif",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
+                    SignLanguageSelector(
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -158,6 +141,7 @@ fun TalkScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+
             SignTranscriptCard(
                 chatBoxTitle = "Makna Isyaratmu",
                 transcriptText = predictedSign,
@@ -178,6 +162,7 @@ fun TalkScreen(
                     }
                 }
             )
+
             VoiceTranscriptCard(
                 chatBoxTitle = "Teks Percakapan",
                 transcriptText = uiState.transcriptText.ifEmpty {
@@ -314,8 +299,81 @@ fun VoiceTranscriptCard(
     }
 }
 
+// Sign language drop-down
+@Composable
+fun SignLanguageSelector(modifier: Modifier = Modifier) {
+    // state for managing whether the dropdown is expanded or not
+    var expanded by remember { mutableStateOf(false) }
+
+    // list of options and state for the currently selected one
+    val options = listOf("BISINDO", "SIBI")
+    var selectedOptionText by remember { mutableStateOf(options[0]) }
+
+    Box(
+        modifier = modifier.wrapContentSize(Alignment.TopStart)
+    ) {
+        Button(
+            onClick = { expanded = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Translate,
+                contentDescription = "Pilih Bahasa Isyarat",
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // display the currently selected option
+            Text(
+                text = selectedOptionText,
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            // dropdown icon
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = "Buka Menu",
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("BISINDO") },
+                onClick = {
+                    selectedOptionText = "BISINDO"
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Filled.Translate,
+                        contentDescription = "BISINDO"
+                    )
+                }
+            )
+
+            DropdownMenuItem(
+                text = { Text("SIBI") },
+                onClick = { },
+                enabled = false,
+                leadingIcon = {
+                    Icon(
+                        Icons.Filled.Translate,
+                        contentDescription = "SIBI"
+                    )
+                }
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun TalkScreenPreview() {
-    TalkScreen(lang = "BISINDO")
+    TalkScreen()
 }
