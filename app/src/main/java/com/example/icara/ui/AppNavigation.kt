@@ -24,7 +24,6 @@ fun MyAppNavHost(preferencesManager: PreferencesManager) {
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
-            Log.d("NavHost", "Navigating to splash screen")
             SplashScreen(
                 onNavigateNext = {
                     val isFirstLaunch = preferencesManager.isFirstLaunch()

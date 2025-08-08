@@ -61,7 +61,7 @@ dependencies {
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.compose.animation:animation")
-    implementation("androidx.compose.foundation:foundation:1.5.8")
+    implementation("androidx.compose.foundation:foundation")
 
     // Permission lib
     implementation("com.google.accompanist:accompanist-permissions:0.35.1-alpha")
@@ -69,6 +69,7 @@ dependencies {
     // View model and lifecycle lib
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation(libs.androidx.runtime)
 
     // Camera lib
     val camerax_version = "1.4.2"

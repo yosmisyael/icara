@@ -6,8 +6,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -32,6 +34,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.icara.ui.components.AnimatedScrollbar
 import com.example.icara.ui.components.AudioWaveform
 import com.example.icara.viewmodels.TalkViewModel
 
@@ -189,6 +192,8 @@ fun SignTranscriptCard(
     transcriptText: String,
     cameraPreview: @Composable () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -219,6 +224,7 @@ fun SignTranscriptCard(
                 Text(
                     text = transcriptText,
                     style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.verticalScroll(scrollState),
                 )
             }
         }
@@ -235,6 +241,7 @@ fun VoiceTranscriptCard(
     onMicClick: () -> Unit,
 ) {
     val buttonShape = if (isListening) CircleShape else RoundedCornerShape(8.dp)
+    val scrollState = rememberScrollState()
 
     Card(
         modifier = Modifier
@@ -251,7 +258,7 @@ fun VoiceTranscriptCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
@@ -260,11 +267,26 @@ fun VoiceTranscriptCard(
                     fontWeight = FontWeight.Bold,
                 )
 
-                Text(
-                    text = transcriptText,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = transcriptText,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(end = 12.dp),
+                    )
+
+                    AnimatedScrollbar(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(8.dp),
+                        scrollState = scrollState,
+                        thumbColor = MaterialTheme.colorScheme.onTertiary,
+                        trackColor = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
 
             Row(
