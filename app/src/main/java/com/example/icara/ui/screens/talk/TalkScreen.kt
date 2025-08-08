@@ -51,17 +51,12 @@ fun TalkScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Collect the new predicted sign state
-    val predictedSign by viewModel.predictedSign.collectAsStateWithLifecycle()
+    // collect states from ViewModel
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val signLanguageState by viewModel.signLanguageState.collectAsStateWithLifecycle()
 
     // remember a PreviewView instance
     val previewView = remember { PreviewView(context) }
-
-    // speech recognition ui state
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    // get hand landmark result
-    val handLandmarkerResult by viewModel.handLandmarkerResult.collectAsStateWithLifecycle()
 
     // camera permission access
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -155,15 +150,19 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.NONE },
                         chatBoxTitle = "Makna Isyaratmu",
-                        transcriptText = predictedSign,
+                        transcriptText = signLanguageState.predictedSign,
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
                                     factory = { previewView },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    update = { view ->
+                                        view.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                        view.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                    }
                                 )
 
-                                handLandmarkerResult?.let { resultBundle ->
+                                signLanguageState.handLandmarkerResult?.let { resultBundle ->
                                     LandmarkOverlay(
                                         resultBundle = resultBundle,
                                         modifier = Modifier.fillMaxSize()
@@ -178,11 +177,11 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
                         chatBoxTitle = "Teks Percakapan",
-                        transcriptText = uiState.transcriptText.ifEmpty {
-                            if (uiState.isListening) "Mendengarkan..."
+                        transcriptText = uiState.speechState.transcriptText.ifEmpty {
+                            if (uiState.speechState.isListening) "Mendengarkan..."
                             else "Ketuk mikrofon untuk mulai merekam"
                         },
-                        isListening = uiState.isListening,
+                        isListening = uiState.speechState.isListening,
                         onMicClick = {
                             if (hasAudioPermission) {
                                 viewModel.toggleSpeechRecording(context)
@@ -200,15 +199,19 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
                         chatBoxTitle = "Makna Isyaratmu",
-                        transcriptText = predictedSign,
+                        transcriptText = signLanguageState.predictedSign,
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
                                     factory = { previewView },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    update = { view ->
+                                        view.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                        view.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                    }
                                 )
 
-                                handLandmarkerResult?.let { resultBundle ->
+                                signLanguageState.handLandmarkerResult?.let { resultBundle ->
                                     LandmarkOverlay(
                                         resultBundle = resultBundle,
                                         modifier = Modifier.fillMaxSize()
@@ -223,11 +226,11 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.NONE },
                         chatBoxTitle = "Teks Percakapan",
-                        transcriptText = uiState.transcriptText.ifEmpty {
-                            if (uiState.isListening) "Mendengarkan..."
+                        transcriptText = uiState.speechState.transcriptText.ifEmpty {
+                            if (uiState.speechState.isListening) "Mendengarkan..."
                             else "Ketuk mikrofon untuk mulai merekam"
                         },
-                        isListening = uiState.isListening,
+                        isListening = uiState.speechState.isListening,
                         onMicClick = {
                             if (hasAudioPermission) {
                                 viewModel.toggleSpeechRecording(context)
@@ -245,15 +248,19 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
                         chatBoxTitle = "Makna Isyaratmu",
-                        transcriptText = predictedSign,
+                        transcriptText = signLanguageState.predictedSign,
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
                                     factory = { previewView },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    update = { view ->
+                                        view.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                        view.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                    }
                                 )
 
-                                handLandmarkerResult?.let { resultBundle ->
+                                signLanguageState.handLandmarkerResult?.let { resultBundle ->
                                     LandmarkOverlay(
                                         resultBundle = resultBundle,
                                         modifier = Modifier.fillMaxSize()
@@ -268,11 +275,11 @@ fun TalkScreen(
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
                         chatBoxTitle = "Teks Percakapan",
-                        transcriptText = uiState.transcriptText.ifEmpty {
-                            if (uiState.isListening) "Mendengarkan..."
+                        transcriptText = uiState.speechState.transcriptText.ifEmpty {
+                            if (uiState.speechState.isListening) "Mendengarkan..."
                             else "Ketuk mikrofon untuk mulai merekam"
                         },
-                        isListening = uiState.isListening,
+                        isListening = uiState.speechState.isListening,
                         onMicClick = {
                             if (hasAudioPermission) {
                                 viewModel.toggleSpeechRecording(context)
