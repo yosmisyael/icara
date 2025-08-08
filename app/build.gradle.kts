@@ -51,37 +51,42 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
 
-    // Coroutines library
+    // Coroutines lib
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Material theme library
+    // Material theme lib
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
-    // Permission library
+    // Splash screen
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.compose.foundation:foundation:1.5.8")
+
+    // Permission lib
     implementation("com.google.accompanist:accompanist-permissions:0.35.1-alpha")
 
-    // View model and lifecycle library
+    // View model and lifecycle lib
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    // Camera library
+    // Camera lib
     val camerax_version = "1.4.2"
     implementation("androidx.camera:camera-core:$camerax_version")
     implementation("androidx.camera:camera-camera2:$camerax_version")
     implementation("androidx.camera:camera-lifecycle:$camerax_version")
     implementation("androidx.camera:camera-view:$camerax_version")
 
-    // Navigation library
+    // Navigation lib
     implementation("androidx.navigation:navigation-compose:2.9.3")
 
-    // JSON handling library
+    // JSON handling lib
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // MP library
+    // MP lib
     implementation("com.google.mediapipe:tasks-vision:0.10.26")
 
-    // Networking library
+    // Networking lib
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -93,6 +98,13 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.2.0")
     implementation("androidx.media3:media3-common:1.2.0")
     implementation("androidx.media3:media3-datasource:1.2.0")
+
+    // Tensorflow lib
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-gpu:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-support:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-metadata:1.4.0")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
