@@ -15,7 +15,7 @@ import com.example.icara.ui.screens.home.HomeScreen
 import com.example.icara.ui.screens.onboarding.WelcomeScreen
 import com.example.icara.ui.screens.splash.SplashScreen
 import com.example.icara.ui.screens.talk.TalkScreen
-import com.example.icara.utils.PreferencesManager
+import com.example.icara.ui.utils.PreferencesManager
 
 @Composable
 fun MyAppNavHost(preferencesManager: PreferencesManager) {
