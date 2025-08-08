@@ -25,10 +25,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.icara.ui.components.SignLanguageSelector
-import com.example.icara.ui.components.SignTranscriptCard
-import com.example.icara.ui.components.UnderDevelopmentDialog
-import com.example.icara.ui.components.VoiceTranscriptCard
+import com.example.icara.ui.components.SignLanguageSwitcher
+import com.example.icara.ui.components.SignTranscriptBox
+import com.example.icara.ui.components.DevelopmentDialog
+import com.example.icara.ui.components.VoiceTranscriptBox
 import com.example.icara.viewmodels.TalkViewModel
 
 enum class MaximizedState {
@@ -122,7 +122,7 @@ fun TalkScreen(
                     }
                 },
                 actions = {
-                    SignLanguageSelector(
+                    SignLanguageSwitcher(
                         modifier = Modifier.padding(end = 16.dp),
                         onSelectDisabledItem = { showUnderDevelopmentDialog = true }
                     )
@@ -150,7 +150,7 @@ fun TalkScreen(
 
             when (maximizedCard) {
                 MaximizedState.SIGN -> {
-                    SignTranscriptCard(
+                    SignTranscriptBox(
                         modifier = Modifier.weight(1f),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.NONE },
@@ -173,7 +173,7 @@ fun TalkScreen(
                         }
                     )
 
-                    VoiceTranscriptCard(
+                    VoiceTranscriptBox(
                         modifier = Modifier.height(80.dp),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
@@ -195,7 +195,7 @@ fun TalkScreen(
                 }
 
                 MaximizedState.VOICE -> {
-                    SignTranscriptCard(
+                    SignTranscriptBox(
                         modifier = Modifier.height(80.dp),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
@@ -218,7 +218,7 @@ fun TalkScreen(
                         }
                     )
 
-                    VoiceTranscriptCard(
+                    VoiceTranscriptBox(
                         modifier = Modifier.weight(1f),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.NONE },
@@ -240,7 +240,7 @@ fun TalkScreen(
                 }
 
                 MaximizedState.NONE -> {
-                    SignTranscriptCard(
+                    SignTranscriptBox(
                         modifier = Modifier.weight(1f),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
@@ -263,7 +263,7 @@ fun TalkScreen(
                         }
                     )
 
-                    VoiceTranscriptCard(
+                    VoiceTranscriptBox(
                         modifier = Modifier.weight(1f),
                         currentMaximizedState = maximizedCard,
                         onToggleMaximize = { maximizedCard = MaximizedState.VOICE },
@@ -288,7 +288,7 @@ fun TalkScreen(
     }
 
     if (showUnderDevelopmentDialog) {
-        UnderDevelopmentDialog(onDismiss = { showUnderDevelopmentDialog = false })
+        DevelopmentDialog(onDismiss = { showUnderDevelopmentDialog = false })
     }
 }
 

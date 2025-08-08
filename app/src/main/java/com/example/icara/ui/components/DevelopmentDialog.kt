@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun UnderDevelopmentDialog(onDismiss: () -> Unit) {
+fun DevelopmentDialog(onDismiss: () -> Unit) {
     AlertDialog(
         shape = RoundedCornerShape(12.dp),
         containerColor = MaterialTheme.colorScheme.surface,

@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SignLanguageSelector(
+fun SignLanguageSwitcher(
     modifier: Modifier = Modifier,
     onSelectDisabledItem: () -> Unit,
 ) {

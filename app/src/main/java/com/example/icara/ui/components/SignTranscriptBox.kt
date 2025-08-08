@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.example.icara.ui.screens.talk.MaximizedState
 
 @Composable
-fun SignTranscriptCard(
+fun SignTranscriptBox(
     modifier: Modifier = Modifier,
     currentMaximizedState: MaximizedState,
     onToggleMaximize: () -> Unit,

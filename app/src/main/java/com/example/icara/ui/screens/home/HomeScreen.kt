@@ -26,12 +26,12 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.icara.ui.components.SelectionDialog
+import com.example.icara.ui.components.SignLanguageMenu
 import com.example.icara.viewmodels.HomeViewModel
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import com.example.icara.ui.components.DialogOption
-import com.example.icara.ui.components.UnderDevelopmentDialog
+import com.example.icara.ui.components.DevelopmentDialog
 
 @Composable
 fun HomeScreen(
@@ -96,7 +96,7 @@ fun HomeScreenContent(
     )
 
     if (showDialog) {
-        SelectionDialog(
+        SignLanguageMenu(
             title = "Pilih Bahasa Isyarat",
             onDismissRequest = onLangOptDialogDismiss,
             options = listOf(
@@ -108,7 +108,7 @@ fun HomeScreenContent(
     }
 
     if (showSysDevDialog) {
-        UnderDevelopmentDialog(onDismissSysDevDialog)
+        DevelopmentDialog(onDismissSysDevDialog)
     }
 
     Box(

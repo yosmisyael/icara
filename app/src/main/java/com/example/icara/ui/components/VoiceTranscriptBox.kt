@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.example.icara.ui.screens.talk.MaximizedState
 
 @Composable
-fun VoiceTranscriptCard(
+fun VoiceTranscriptBox(
     modifier: Modifier = Modifier,
     chatBoxTitle: String,
     transcriptText: String,

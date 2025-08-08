@@ -19,7 +19,7 @@ sealed class DialogOption(val lang: String) {
 }
 
 @Composable
-fun SelectionDialog(
+fun SignLanguageMenu(
     onDismissRequest: () -> Unit,
     onAction: (DialogOption) -> Unit,
     title: String,
