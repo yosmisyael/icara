@@ -4,17 +4,9 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,8 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,8 +24,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.icara.ui.components.AnimatedScrollbar
-import com.example.icara.ui.components.AudioWaveform
+import com.example.icara.ui.components.SignLanguageSelector
+import com.example.icara.ui.components.SignTranscriptCard
+import com.example.icara.ui.components.VoiceTranscriptCard
 import com.example.icara.viewmodels.TalkViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -179,215 +170,6 @@ fun TalkScreen(
                     } else {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
-                }
-            )
-        }
-    }
-}
-
-// Sign Transcribe Component
-@Composable
-fun SignTranscriptCard(
-    chatBoxTitle: String,
-    transcriptText: String,
-    cameraPreview: @Composable () -> Unit
-) {
-    val scrollState = rememberScrollState()
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.DarkGray),
-                contentAlignment = Alignment.Center
-            ) {
-                cameraPreview()
-            }
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = chatBoxTitle,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = transcriptText,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.verticalScroll(scrollState),
-                )
-            }
-        }
-    }
-}
-
-// Voice Transcribe Component
-@Composable
-fun VoiceTranscriptCard(
-    chatBoxTitle: String,
-    transcriptText: String,
-    isListening: Boolean = false,
-    audioLevel: Float = 0f,
-    onMicClick: () -> Unit,
-) {
-    val buttonShape = if (isListening) CircleShape else RoundedCornerShape(8.dp)
-    val scrollState = rememberScrollState()
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = chatBoxTitle,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-
-                Box(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = transcriptText,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                            .padding(end = 12.dp),
-                    )
-
-                    AnimatedScrollbar(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .width(8.dp),
-                        scrollState = scrollState,
-                        thumbColor = MaterialTheme.colorScheme.onTertiary,
-                        trackColor = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isListening) {
-                    AudioWaveform(
-                        audioLevel = audioLevel,
-                        isListening = isListening,
-                        waveColor = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                FloatingActionButton(
-                    onClick = onMicClick,
-                    shape = buttonShape,
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = MaterialTheme.colorScheme.onTertiary,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Mic,
-                        contentDescription = "Start or Stop voice transcription",
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Sign language drop-down
-@Composable
-fun SignLanguageSelector(modifier: Modifier = Modifier) {
-    // state for managing whether the dropdown is expanded or not
-    var expanded by remember { mutableStateOf(false) }
-
-    // list of options and state for the currently selected one
-    val options = listOf("BISINDO", "SIBI")
-    var selectedOptionText by remember { mutableStateOf(options[0]) }
-
-    Box(
-        modifier = modifier.wrapContentSize(Alignment.TopStart)
-    ) {
-        Button(
-            onClick = { expanded = true },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Translate,
-                contentDescription = "Pilih Bahasa Isyarat",
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // display the currently selected option
-            Text(
-                text = selectedOptionText,
-                style = MaterialTheme.typography.titleMedium,
-            )
-
-            // dropdown icon
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Buka Menu",
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            DropdownMenuItem(
-                text = { Text("BISINDO") },
-                onClick = {
-                    selectedOptionText = "BISINDO"
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Translate,
-                        contentDescription = "BISINDO"
-                    )
-                }
-            )
-
-            DropdownMenuItem(
-                text = { Text("SIBI") },
-                onClick = { },
-                enabled = false,
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Translate,
-                        contentDescription = "SIBI"
-                    )
                 }
             )
         }
