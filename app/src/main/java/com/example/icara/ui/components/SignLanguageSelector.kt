@@ -14,6 +14,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +28,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SignLanguageSelector(modifier: Modifier = Modifier) {
+fun SignLanguageSelector(
+    modifier: Modifier = Modifier,
+    onSelectDisabledItem: () -> Unit,
+) {
     // state for managing whether the dropdown is expanded or not
     var expanded by remember { mutableStateOf(false) }
 
@@ -94,14 +98,20 @@ fun SignLanguageSelector(modifier: Modifier = Modifier) {
 
             DropdownMenuItem(
                 text = { Text("SIBI") },
-                onClick = { },
-                enabled = false,
+                onClick = {
+                    expanded = false
+                    onSelectDisabledItem()
+                },
                 leadingIcon = {
                     Icon(
                         Icons.Filled.Translate,
                         contentDescription = "SIBI"
                     )
-                }
+                },
+                colors = MenuDefaults.itemColors(
+                    textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    leadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                ),
             )
         }
     }
