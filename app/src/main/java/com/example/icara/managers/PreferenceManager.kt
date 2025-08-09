@@ -1,4 +1,4 @@
-package com.example.icara.ui.utils
+package com.example.icara.managers
 
 import android.content.Context
 import androidx.core.content.edit

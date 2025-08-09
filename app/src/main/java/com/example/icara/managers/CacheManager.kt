@@ -1,8 +1,8 @@
-package com.example.icara.data.cache
+package com.example.icara.managers
 
-import com.example.icara.data.model.DictionaryEntry
-import com.example.icara.config.AppConfig
 import android.util.Log
+import com.example.icara.config.AppConfig
+import com.example.icara.data.model.DictionaryEntry
 
 object CacheManager {
     private var cachedEntries: List<DictionaryEntry>? = null

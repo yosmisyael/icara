@@ -4,7 +4,7 @@ import com.example.icara.data.network.DictionaryApiService
 import com.example.icara.data.network.NetworkModule
 import com.example.icara.data.model.DictionaryEntry
 import com.example.icara.data.model.toDictionaryEntry
-import com.example.icara.data.cache.CacheManager
+import com.example.icara.managers.CacheManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.util.Log

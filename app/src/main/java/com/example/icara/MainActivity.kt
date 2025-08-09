@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.icara.ui.MyAppNavHost
 import com.example.icara.ui.theme.ICaraTheme
-import com.example.icara.ui.utils.PreferencesManager
+import com.example.icara.managers.PreferencesManager
 
 class MainActivity : ComponentActivity() {
     private lateinit var preferencesManager: PreferencesManager
