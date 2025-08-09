@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -72,19 +74,21 @@ fun SignTranscriptBox(
                     contentAlignment = Alignment.Center
                 ) {
                     cameraPreview()
-                    IconButton(
-                        onClick = onToggleMaximize,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (isMaximized) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                            contentDescription = if (isMaximized) "Minimize" else "Maximize"
-                        )
+                    if (isMaximized || currentMaximizedState == MaximizedState.NONE) {
+                        IconButton(
+                            onClick = onToggleMaximize,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (isMaximized) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                contentDescription = if (isMaximized) "Minimize" else "Maximize"
+                            )
+                        }
                     }
                 }
 
@@ -93,11 +97,25 @@ fun SignTranscriptBox(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = chatBoxTitle,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = chatBoxTitle,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (!isMaximized && currentMaximizedState != MaximizedState.NONE) {
+                            IconButton(onClick = onToggleMaximize) {
+                                Icon(
+                                    imageVector = if (isMaximized) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    contentDescription = if (isMaximized) "Minimize" else "Maximize"
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = transcriptText,
                         style = MaterialTheme.typography.titleMedium,
@@ -106,20 +124,22 @@ fun SignTranscriptBox(
                 }
 
             }
-            // FAB
-            FloatingActionButton(
-                onClick = onFabClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Transcribe,
-                    contentDescription = "Sign Language Action"
-                )
+            if (isMaximized || currentMaximizedState == MaximizedState.NONE) {
+                // FAB
+                FloatingActionButton(
+                    onClick = onFabClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Transcribe,
+                        contentDescription = "Sign Language Action"
+                    )
+                }
             }
         }
     }
