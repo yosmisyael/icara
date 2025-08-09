@@ -1,6 +1,5 @@
 package com.example.icara.ui
 
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -13,40 +12,45 @@ import com.example.icara.ui.screens.dictionary.DictionaryScreen
 import com.example.icara.ui.screens.dictionary.SharedDictionaryViewModel
 import com.example.icara.ui.screens.home.HomeScreen
 import com.example.icara.ui.screens.onboarding.WelcomeScreen
-import com.example.icara.ui.screens.splash.SplashScreen
 import com.example.icara.ui.screens.talk.TalkScreen
 import com.example.icara.managers.PreferencesManager
+//import com.example.icara.ui.screens.splash.SplashScreen
 
 @Composable
 fun MyAppNavHost(preferencesManager: PreferencesManager) {
     val navController = rememberNavController()
     val sharedViewModel: SharedDictionaryViewModel = viewModel()
 
-    NavHost(navController = navController, startDestination = "splash") {
-        composable("splash") {
-            SplashScreen(
-                onNavigateNext = {
-                    val isFirstLaunch = preferencesManager.isFirstLaunch()
+    val startDestination = if (preferencesManager.isFirstLaunch()) {
+        "onboarding"
+    } else {
+        "home"
+    }
 
-                    val destination = if (isFirstLaunch) {
-                        "onboarding"
-                    } else {
-                        "home"
-                    }
-                    navController.navigate(destination) {
-                        // remove the splash screen from the back stack
-                        popUpTo("splash") { inclusive = true }
-                    }
-                }
-            )
-        }
+    NavHost(navController = navController, startDestination = startDestination) {
+        // always start from splash
+//        composable("splash") {
+//            SplashScreen(
+//                onNavigateNext = {
+//                    val isFirstLaunch = preferencesManager.isFirstLaunch()
+//
+//                    val destination = if (isFirstLaunch) {
+//                        "onboarding"
+//                    } else {
+//                        "home"
+//                    }
+//                    navController.navigate(destination) {
+//                        // remove the splash screen from the back stack
+//                        popUpTo("splash") { inclusive = true }
+//                    }
+//                }
+//            )
+//        }
 
         // Navigation to welcome screen
         composable("onboarding") {
-            Log.d("NavHost", "Navigating to onboarding screen")
             WelcomeScreen(
                 onComplete = {
-                    Log.d("NavHost", "WelcomeScreen onComplete called")
                     preferencesManager.markOnboardingComplete()
                     navController.navigate("home") {
                         popUpTo("onboarding") { inclusive = true }
@@ -57,7 +61,6 @@ fun MyAppNavHost(preferencesManager: PreferencesManager) {
 
         // Navigation to home screen
         composable("home") {
-            Log.d("NavHost", "Navigating to home screen")
             HomeScreen(navController = navController)
         }
 
