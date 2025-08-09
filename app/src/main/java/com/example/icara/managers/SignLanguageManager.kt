@@ -48,10 +48,11 @@ class SignLanguageManager(
     private val SEQUENCE_LENGTH = 30
     private val FEATURES_PER_FRAME = 126 // 2 hands * 21 landmarks * 3 coordinates
     private var frameCounter = 0
-    private val PREDICTION_INTERVAL = 30 // Reduced from 5 to 3 for even faster response
+    private val PREDICTION_INTERVAL = 15 // Reduced from 5 to 3 for even faster response
     private val labels = listOf(
-        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
-        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+        "A", "Apa", "B", "C", "D", "E", "F", "I", "J", "K", "L", "M",
+        "N", "Nama", "O", "P", "Q", "R", "S", "Saya", "Terima Kasih",
+        "U", "V", "W", "X", "Y", "Z"
     )
 
     // Improved gesture detection using predictions instead of landmarks
@@ -384,7 +385,7 @@ class SignLanguageManager(
 
     private fun setupLiteRtInterpreter(context: Context) {
         try {
-            val assetFileDescriptor = context.assets.openFd("best_model_lstm_hands.tflite")
+            val assetFileDescriptor = context.assets.openFd("best_model_lstm_hands_v2.tflite")
             val fileInputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
             val fileChannel = fileInputStream.channel
             val startOffset = assetFileDescriptor.startOffset
