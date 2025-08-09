@@ -22,9 +22,10 @@ import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.abs
 
 /**
- * Manages sign language recognition functionality
+ * Manages sign language recognition functionality with smart gesture detection
  */
 class SignLanguageManager(
     private val coroutineScope: CoroutineScope
@@ -47,11 +48,39 @@ class SignLanguageManager(
     private val SEQUENCE_LENGTH = 30
     private val FEATURES_PER_FRAME = 126 // 2 hands * 21 landmarks * 3 coordinates
     private var frameCounter = 0
-    private val PREDICTION_INTERVAL = 15 // Run prediction every 15 frames
+    private val PREDICTION_INTERVAL = 30 // Reduced from 5 to 3 for even faster response
     private val labels = listOf(
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
         "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
     )
+
+    // Improved gesture detection using predictions instead of landmarks
+    private var previousLandmarks: List<Float>? = null
+    private var stableGestureCounter = 0
+    private var handsOutOfFrameCounter = 0
+    private val STABLE_GESTURE_THRESHOLD = 3 // Further reduced from 5 to 3
+    private val GESTURE_CHANGE_THRESHOLD = 0.05f
+    private val OUT_OF_FRAME_THRESHOLD = 10 // Reduced from 15 to 10 for faster spacing
+    private var lastPredictedSign: String = ""
+    private var gestureStabilized = false
+
+    // FIXED: Improved prediction-based gesture tracking
+    private var lastConfirmedPrediction: String = ""
+    private var currentPredictionConsistencyCounter = 0
+    private val PREDICTION_CONSISTENCY_THRESHOLD = 2 // Keep at 2 for balance of speed and accuracy
+    private var tempPredictionBuffer: String = ""
+
+    // FIXED: Better spacing state management
+    private var justCompletedSpacing = false // NEW: Track if spacing just completed
+    private var spacingCompletedTime = 0L
+    private val POST_SPACING_WINDOW_MS = 100L // Short window after spacing where repeats are allowed
+
+    // More strict landmark-based detection to prevent false gesture changes
+    private val MAJOR_GESTURE_CHANGE_THRESHOLD = 0.45f // Increased to be much less sensitive
+
+    // inference detection
+    private var hasDetectedHandsYet = false
+    private var inferenceStarted = false
 
     fun initialize(context: Context) {
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -76,6 +105,52 @@ class SignLanguageManager(
         val handsResult = resultBundle.results.first()
         val landmarksForFrame = mutableListOf<Float>()
         val emptyHandLandmarks = FloatArray(63) { 0f }.toList()
+        val hasHandsInCurrentFrame = handsResult.landmarks().isNotEmpty()
+
+        // Handle hands going out of frame for space detection
+        if (!hasHandsInCurrentFrame) {
+            handsOutOfFrameCounter++
+
+            // If hands were out long enough, add space (only if we have existing predictions)
+            if (handsOutOfFrameCounter >= OUT_OF_FRAME_THRESHOLD && !justCompletedSpacing) {
+                val currentPrediction = _signLanguageState.value.predictedSign
+                if (currentPrediction.isNotEmpty() &&
+                    currentPrediction != "Ready" &&
+                    !currentPrediction.endsWith(" ")) {
+                    _signLanguageState.value = _signLanguageState.value.copy(
+                        predictedSign = "$currentPrediction "
+                    )
+                    Log.d("SignLanguageManager", "Space added to prediction")
+                }
+
+                // FIXED: Mark spacing as completed and reset prediction tracking
+                justCompletedSpacing = true
+                spacingCompletedTime = System.currentTimeMillis()
+                resetPredictionTrackingForSpacing()
+                handsOutOfFrameCounter = 0
+            }
+
+            // Reset landmark-based detection when hands leave
+            resetLandmarkDetection()
+            return
+        } else {
+            handsOutOfFrameCounter = 0 // Reset out-of-frame counter when hands are detected
+        }
+
+        if (hasHandsInCurrentFrame && !hasDetectedHandsYet) {
+            hasDetectedHandsYet = true
+            inferenceStarted = true
+            // Clear info text when hands are first detected
+            _signLanguageState.value = _signLanguageState.value.copy(
+                predictedSign = "",
+                error = null
+            )
+        }
+
+        // Don't process landmarks or run inference yet
+        if (!hasDetectedHandsYet || !hasHandsInCurrentFrame) {
+            return
+        }
 
         if (handsResult.landmarks().isEmpty()) {
             landmarksForFrame.addAll(emptyHandLandmarks)
@@ -91,18 +166,90 @@ class SignLanguageManager(
             }
         }
 
+        // FIXED: Much more strict gesture change detection - only reset on truly major changes
+        val hasMajorGestureChange = hasMajorGestureChange(landmarksForFrame)
+
+        if (hasMajorGestureChange) {
+            // Only reset on truly major landmark changes
+            resetLandmarkDetection()
+            resetPredictionTrackingForGestureChange()
+            Log.d("SignLanguageManager", "Major gesture change detected - full reset")
+        } else {
+            stableGestureCounter++
+            if (stableGestureCounter >= STABLE_GESTURE_THRESHOLD) {
+                gestureStabilized = true
+            }
+        }
+
+        // Update previous landmarks for next comparison
+        previousLandmarks = landmarksForFrame.toList()
+
         landmarkSequence.addAll(landmarksForFrame)
         while (landmarkSequence.size > SEQUENCE_LENGTH * FEATURES_PER_FRAME) {
             landmarkSequence.subList(0, FEATURES_PER_FRAME).clear()
         }
 
         frameCounter++
-        if (frameCounter >= PREDICTION_INTERVAL) {
+        if (frameCounter >= PREDICTION_INTERVAL &&
+            gestureStabilized &&
+            landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME
+        ) {
             frameCounter = 0
             if (landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME) {
                 landmarkDataChannel.trySend(landmarkSequence.toList())
             }
         }
+    }
+
+    private fun resetLandmarkDetection() {
+        previousLandmarks = null
+        stableGestureCounter = 0
+        gestureStabilized = false
+        Log.d("SignLanguageManager", "Landmark detection reset")
+    }
+
+    // FIXED: Different reset functions for different scenarios
+    private fun resetPredictionTrackingForSpacing() {
+        currentPredictionConsistencyCounter = 0
+        tempPredictionBuffer = ""
+        // DON'T reset lastConfirmedPrediction - this allows same gesture after spacing
+        Log.d("SignLanguageManager", "Prediction tracking reset for spacing")
+    }
+
+    private fun resetPredictionTrackingForGestureChange() {
+        currentPredictionConsistencyCounter = 0
+        tempPredictionBuffer = ""
+        lastConfirmedPrediction = "" // Reset this for gesture changes
+        Log.d("SignLanguageManager", "Prediction tracking reset for gesture change")
+    }
+
+    private fun hasMajorGestureChange(currentLandmarks: List<Float>): Boolean {
+        val previous = previousLandmarks ?: return true // First frame is always considered changed
+
+        if (previous.size != currentLandmarks.size) return true
+
+        // FIXED: More lenient gesture change detection
+        var totalDistance = 0f
+        var significantChanges = 0
+
+        for (i in currentLandmarks.indices step 3) {
+            val dx = abs(currentLandmarks[i] - previous[i])
+            val dy = abs(currentLandmarks[i + 1] - previous[i + 1])
+            val dz = abs(currentLandmarks[i + 2] - previous[i + 2])
+            val distance = (dx + dy + dz) / 3f
+
+            totalDistance += distance
+
+            // Count landmarks with significant individual changes
+            if (distance > MAJOR_GESTURE_CHANGE_THRESHOLD) {
+                significantChanges++
+            }
+        }
+
+        val averageDistance = totalDistance / (currentLandmarks.size / 3)
+
+        // FIXED: Much more strict thresholds to prevent false gesture changes
+        return averageDistance > MAJOR_GESTURE_CHANGE_THRESHOLD && significantChanges > 12 // Increased from 8 to 12
     }
 
     override fun onError(error: String) {
@@ -161,10 +308,77 @@ class SignLanguageManager(
         val probabilities = outputBuffer[0]
         val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
         if (maxIndex != -1 && maxIndex < labels.size) {
-            _signLanguageState.value = _signLanguageState.value.copy(
-                predictedSign = labels[maxIndex],
-                error = null
-            )
+            val newPrediction = labels[maxIndex]
+
+            // FIXED: Improved prediction handling
+            handleNewPrediction(newPrediction)
+        }
+    }
+
+    private fun handleNewPrediction(newPrediction: String) {
+        // Check if this prediction is the same as our temporary buffer
+        if (newPrediction == tempPredictionBuffer) {
+            currentPredictionConsistencyCounter++
+        } else {
+            // Different prediction, reset consistency tracking
+            tempPredictionBuffer = newPrediction
+            currentPredictionConsistencyCounter = 1
+        }
+
+        // Check if we're in post-spacing window
+        val timeSinceSpacing = System.currentTimeMillis() - spacingCompletedTime
+        val inPostSpacingWindow = justCompletedSpacing && timeSinceSpacing <= POST_SPACING_WINDOW_MS
+
+        Log.d("SignLanguageManager", "Prediction: $newPrediction, Consistency: $currentPredictionConsistencyCounter/$PREDICTION_CONSISTENCY_THRESHOLD, JustSpaced: $justCompletedSpacing, InWindow: $inPostSpacingWindow, LastConfirmed: $lastConfirmedPrediction")
+
+        // Only accept the prediction if it's been consistent for enough frames
+        if (currentPredictionConsistencyCounter >= PREDICTION_CONSISTENCY_THRESHOLD) {
+            // FIXED: Strict duplicate prevention - only allow repeats immediately after spacing
+            val canAcceptPrediction = if (inPostSpacingWindow) {
+                // In post-spacing window: allow any prediction (including repeats)
+                true
+            } else {
+                // Normal operation: STRICT - no repeats allowed
+                newPrediction != lastConfirmedPrediction
+            }
+
+            if (canAcceptPrediction) {
+                val currentPrediction = _signLanguageState.value.predictedSign
+                val updatedPrediction = if (currentPrediction.isEmpty() || currentPrediction == "Ready") {
+                    newPrediction
+                } else {
+                    "$currentPrediction$newPrediction" // No space between letters unless hands go out of frame
+                }
+
+                _signLanguageState.value = _signLanguageState.value.copy(
+                    predictedSign = updatedPrediction,
+                    error = null
+                )
+
+                // ALWAYS update lastConfirmedPrediction after successful acceptance
+                lastConfirmedPrediction = newPrediction
+
+                Log.d("SignLanguageManager", "New prediction confirmed: $newPrediction -> lastConfirmed updated to: $lastConfirmedPrediction")
+
+                // Exit post-spacing state if we were in it
+                if (inPostSpacingWindow) {
+                    justCompletedSpacing = false
+                    Log.d("SignLanguageManager", "Exited post-spacing window after successful prediction")
+                }
+
+                // IMPORTANT: Reset consistency counter to prevent immediate re-acceptance
+                currentPredictionConsistencyCounter = 0
+                tempPredictionBuffer = ""
+
+            } else {
+                Log.d("SignLanguageManager", "Prediction $newPrediction BLOCKED - same as last confirmed ($lastConfirmedPrediction) and not in post-spacing window")
+            }
+        }
+
+        // Clean up old spacing state if window expired
+        if (justCompletedSpacing && timeSinceSpacing > POST_SPACING_WINDOW_MS) {
+            justCompletedSpacing = false
+            Log.d("SignLanguageManager", "Post-spacing window expired")
         }
     }
 
