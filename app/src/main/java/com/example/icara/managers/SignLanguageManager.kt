@@ -48,36 +48,51 @@ class SignLanguageManager(
     private val SEQUENCE_LENGTH = 30
     private val FEATURES_PER_FRAME = 126 // 2 hands * 21 landmarks * 3 coordinates
     private var frameCounter = 0
-    private val PREDICTION_INTERVAL = 15 // Reduced from 5 to 3 for even faster response
+
+    // IMPROVED: Adaptive prediction intervals
+    private val PREDICTION_INTERVAL_DYNAMIC = 30 // Every frame for dynamic gestures (words)
+    private val PREDICTION_INTERVAL_STATIC = 10 // Every 3 frames for static gestures (letters)
+    private var currentPredictionInterval = PREDICTION_INTERVAL_STATIC
+
     private val labels = listOf(
         "A", "Apa", "B", "C", "D", "E", "F", "I", "J", "K", "L", "M",
         "N", "Nama", "O", "P", "Q", "R", "S", "Saya", "Terima Kasih",
         "U", "V", "W", "X", "Y", "Z"
     )
 
-    // Improved gesture detection using predictions instead of landmarks
+    // IMPROVED: Adaptive gesture detection
     private var previousLandmarks: List<Float>? = null
     private var stableGestureCounter = 0
     private var handsOutOfFrameCounter = 0
-    private val STABLE_GESTURE_THRESHOLD = 3 // Further reduced from 5 to 3
-    private val GESTURE_CHANGE_THRESHOLD = 0.05f
-    private val OUT_OF_FRAME_THRESHOLD = 10 // Reduced from 15 to 10 for faster spacing
-    private var lastPredictedSign: String = ""
     private var gestureStabilized = false
 
-    // FIXED: Improved prediction-based gesture tracking
+    // IMPROVED: Movement-based detection
+    private var isGestureDynamic = false
+    private var movementHistory = mutableListOf<Float>()
+    private val MOVEMENT_HISTORY_SIZE = 10
+    private val DYNAMIC_MOVEMENT_THRESHOLD = 0.15f // Threshold to detect if gesture is dynamic
+    private val STATIC_STABILITY_THRESHOLD = 2 // Reduced for faster static gestures
+    private var dynamicProcessingCounter = 0
+
+    private val OUT_OF_FRAME_THRESHOLD = 10
+
+    // IMPROVED: Adaptive consistency requirements
     private var lastConfirmedPrediction: String = ""
     private var currentPredictionConsistencyCounter = 0
-    private val PREDICTION_CONSISTENCY_THRESHOLD = 2 // Keep at 2 for balance of speed and accuracy
+    private val PREDICTION_CONSISTENCY_STATIC = 2 // For static gestures (letters)
+    private val PREDICTION_CONSISTENCY_DYNAMIC = 1 // For dynamic gestures (words) - faster
+    private var currentConsistencyThreshold = PREDICTION_CONSISTENCY_STATIC
     private var tempPredictionBuffer: String = ""
 
-    // FIXED: Better spacing state management
-    private var justCompletedSpacing = false // NEW: Track if spacing just completed
+    // Post-spacing window logic
+    private var justCompletedSpacing = false
     private var spacingCompletedTime = 0L
-    private val POST_SPACING_WINDOW_MS = 100L // Short window after spacing where repeats are allowed
+    private val POST_SPACING_WINDOW_MS = 100L
 
-    // More strict landmark-based detection to prevent false gesture changes
-    private val MAJOR_GESTURE_CHANGE_THRESHOLD = 0.45f // Increased to be much less sensitive
+    // IMPROVED: Adaptive gesture change detection
+    private val MAJOR_GESTURE_CHANGE_STATIC = 0.45f // For detecting actual gesture changes
+    private val MAJOR_GESTURE_CHANGE_DYNAMIC = 0.25f // More sensitive for dynamic gestures
+    private var currentGestureChangeThreshold = MAJOR_GESTURE_CHANGE_STATIC
 
     // inference detection
     private var hasDetectedHandsYet = false
@@ -112,7 +127,6 @@ class SignLanguageManager(
         if (!hasHandsInCurrentFrame) {
             handsOutOfFrameCounter++
 
-            // If hands were out long enough, add space (only if we have existing predictions)
             if (handsOutOfFrameCounter >= OUT_OF_FRAME_THRESHOLD && !justCompletedSpacing) {
                 val currentPrediction = _signLanguageState.value.predictedSign
                 if (currentPrediction.isNotEmpty() &&
@@ -124,31 +138,27 @@ class SignLanguageManager(
                     Log.d("SignLanguageManager", "Space added to prediction")
                 }
 
-                // FIXED: Mark spacing as completed and reset prediction tracking
                 justCompletedSpacing = true
                 spacingCompletedTime = System.currentTimeMillis()
                 resetPredictionTrackingForSpacing()
                 handsOutOfFrameCounter = 0
             }
 
-            // Reset landmark-based detection when hands leave
             resetLandmarkDetection()
             return
         } else {
-            handsOutOfFrameCounter = 0 // Reset out-of-frame counter when hands are detected
+            handsOutOfFrameCounter = 0
         }
 
         if (hasHandsInCurrentFrame && !hasDetectedHandsYet) {
             hasDetectedHandsYet = true
             inferenceStarted = true
-            // Clear info text when hands are first detected
             _signLanguageState.value = _signLanguageState.value.copy(
                 predictedSign = "",
                 error = null
             )
         }
 
-        // Don't process landmarks or run inference yet
         if (!hasDetectedHandsYet || !hasHandsInCurrentFrame) {
             return
         }
@@ -167,17 +177,26 @@ class SignLanguageManager(
             }
         }
 
-        // FIXED: Much more strict gesture change detection - only reset on truly major changes
+        // IMPROVED: Detect if gesture is dynamic or static
+        detectGestureType(landmarksForFrame)
+
+        // IMPROVED: Adaptive processing based on gesture type
         val hasMajorGestureChange = hasMajorGestureChange(landmarksForFrame)
 
-        if (hasMajorGestureChange) {
-            // Only reset on truly major landmark changes
+        if (hasMajorGestureChange && !isGestureDynamic) {
+            // Only reset for static gestures on major changes
             resetLandmarkDetection()
             resetPredictionTrackingForGestureChange()
             Log.d("SignLanguageManager", "Major gesture change detected - full reset")
+        } else if (isGestureDynamic) {
+            // For dynamic gestures, don't reset - keep processing
+            dynamicProcessingCounter++
+            gestureStabilized = true // Always consider dynamic gestures as "ready"
+            Log.d("SignLanguageManager", "Dynamic gesture processing: $dynamicProcessingCounter")
         } else {
+            // Static gesture processing
             stableGestureCounter++
-            if (stableGestureCounter >= STABLE_GESTURE_THRESHOLD) {
+            if (stableGestureCounter >= STATIC_STABILITY_THRESHOLD) {
                 gestureStabilized = true
             }
         }
@@ -191,13 +210,63 @@ class SignLanguageManager(
         }
 
         frameCounter++
-        if (frameCounter >= PREDICTION_INTERVAL &&
-            gestureStabilized &&
-            landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME
-        ) {
+
+        // IMPROVED: Adaptive processing - always process if we have enough data
+        val shouldProcess = if (isGestureDynamic) {
+            // Dynamic gestures: process every frame if we have enough sequence data
+            frameCounter >= currentPredictionInterval && landmarkSequence.size >= SEQUENCE_LENGTH * FEATURES_PER_FRAME
+        } else {
+            // Static gestures: require stability
+            frameCounter >= currentPredictionInterval && gestureStabilized && landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME
+        }
+
+        if (shouldProcess) {
             frameCounter = 0
-            if (landmarkSequence.size == SEQUENCE_LENGTH * FEATURES_PER_FRAME) {
-                landmarkDataChannel.trySend(landmarkSequence.toList())
+            landmarkDataChannel.trySend(landmarkSequence.toList())
+        }
+    }
+
+    // NEW: Detect if current gesture is dynamic (movement-based) or static
+    private fun detectGestureType(currentLandmarks: List<Float>) {
+        val previous = previousLandmarks
+        if (previous == null || previous.size != currentLandmarks.size) return
+
+        // Calculate movement magnitude
+        var totalMovement = 0f
+        for (i in currentLandmarks.indices step 3) {
+            val dx = abs(currentLandmarks[i] - previous[i])
+            val dy = abs(currentLandmarks[i + 1] - previous[i + 1])
+            val dz = abs(currentLandmarks[i + 2] - previous[i + 2])
+            totalMovement += (dx + dy + dz) / 3f
+        }
+        val averageMovement = totalMovement / (currentLandmarks.size / 3)
+
+        // Add to movement history
+        movementHistory.add(averageMovement)
+        while (movementHistory.size > MOVEMENT_HISTORY_SIZE) {
+            movementHistory.removeAt(0)
+        }
+
+        // Determine if gesture is dynamic based on recent movement
+        val recentAverageMovement = movementHistory.average().toFloat()
+        val wasDynamic = isGestureDynamic
+        isGestureDynamic = recentAverageMovement > DYNAMIC_MOVEMENT_THRESHOLD
+
+        // Update processing parameters based on gesture type
+        if (isGestureDynamic != wasDynamic) {
+            if (isGestureDynamic) {
+                // Switched to dynamic
+                currentPredictionInterval = PREDICTION_INTERVAL_DYNAMIC
+                currentConsistencyThreshold = PREDICTION_CONSISTENCY_DYNAMIC
+                currentGestureChangeThreshold = MAJOR_GESTURE_CHANGE_DYNAMIC
+                dynamicProcessingCounter = 0
+                Log.d("SignLanguageManager", "Switched to DYNAMIC processing (movement: $recentAverageMovement)")
+            } else {
+                // Switched to static
+                currentPredictionInterval = PREDICTION_INTERVAL_STATIC
+                currentConsistencyThreshold = PREDICTION_CONSISTENCY_STATIC
+                currentGestureChangeThreshold = MAJOR_GESTURE_CHANGE_STATIC
+                Log.d("SignLanguageManager", "Switched to STATIC processing (movement: $recentAverageMovement)")
             }
         }
     }
@@ -206,30 +275,34 @@ class SignLanguageManager(
         previousLandmarks = null
         stableGestureCounter = 0
         gestureStabilized = false
+        dynamicProcessingCounter = 0
+        movementHistory.clear()
+        isGestureDynamic = false
+        // Reset to default static parameters
+        currentPredictionInterval = PREDICTION_INTERVAL_STATIC
+        currentConsistencyThreshold = PREDICTION_CONSISTENCY_STATIC
+        currentGestureChangeThreshold = MAJOR_GESTURE_CHANGE_STATIC
         Log.d("SignLanguageManager", "Landmark detection reset")
     }
 
-    // FIXED: Different reset functions for different scenarios
     private fun resetPredictionTrackingForSpacing() {
         currentPredictionConsistencyCounter = 0
         tempPredictionBuffer = ""
-        // DON'T reset lastConfirmedPrediction - this allows same gesture after spacing
         Log.d("SignLanguageManager", "Prediction tracking reset for spacing")
     }
 
     private fun resetPredictionTrackingForGestureChange() {
         currentPredictionConsistencyCounter = 0
         tempPredictionBuffer = ""
-        lastConfirmedPrediction = "" // Reset this for gesture changes
+        lastConfirmedPrediction = ""
         Log.d("SignLanguageManager", "Prediction tracking reset for gesture change")
     }
 
     private fun hasMajorGestureChange(currentLandmarks: List<Float>): Boolean {
-        val previous = previousLandmarks ?: return true // First frame is always considered changed
+        val previous = previousLandmarks ?: return true
 
         if (previous.size != currentLandmarks.size) return true
 
-        // FIXED: More lenient gesture change detection
         var totalDistance = 0f
         var significantChanges = 0
 
@@ -241,16 +314,16 @@ class SignLanguageManager(
 
             totalDistance += distance
 
-            // Count landmarks with significant individual changes
-            if (distance > MAJOR_GESTURE_CHANGE_THRESHOLD) {
+            if (distance > currentGestureChangeThreshold) {
                 significantChanges++
             }
         }
 
         val averageDistance = totalDistance / (currentLandmarks.size / 3)
 
-        // FIXED: Much more strict thresholds to prevent false gesture changes
-        return averageDistance > MAJOR_GESTURE_CHANGE_THRESHOLD && significantChanges > 12 // Increased from 8 to 12
+        // IMPROVED: Use adaptive thresholds based on gesture type
+        val requiredChanges = if (isGestureDynamic) 8 else 12
+        return averageDistance > currentGestureChangeThreshold && significantChanges > requiredChanges
     }
 
     override fun onError(error: String) {
@@ -310,8 +383,6 @@ class SignLanguageManager(
         val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
         if (maxIndex != -1 && maxIndex < labels.size) {
             val newPrediction = labels[maxIndex]
-
-            // FIXED: Improved prediction handling
             handleNewPrediction(newPrediction)
         }
     }
@@ -330,16 +401,13 @@ class SignLanguageManager(
         val timeSinceSpacing = System.currentTimeMillis() - spacingCompletedTime
         val inPostSpacingWindow = justCompletedSpacing && timeSinceSpacing <= POST_SPACING_WINDOW_MS
 
-        Log.d("SignLanguageManager", "Prediction: $newPrediction, Consistency: $currentPredictionConsistencyCounter/$PREDICTION_CONSISTENCY_THRESHOLD, JustSpaced: $justCompletedSpacing, InWindow: $inPostSpacingWindow, LastConfirmed: $lastConfirmedPrediction")
+        Log.d("SignLanguageManager", "Prediction: $newPrediction, Consistency: $currentPredictionConsistencyCounter/$currentConsistencyThreshold, Dynamic: $isGestureDynamic, JustSpaced: $justCompletedSpacing, InWindow: $inPostSpacingWindow, LastConfirmed: $lastConfirmedPrediction")
 
-        // Only accept the prediction if it's been consistent for enough frames
-        if (currentPredictionConsistencyCounter >= PREDICTION_CONSISTENCY_THRESHOLD) {
-            // FIXED: Strict duplicate prevention - only allow repeats immediately after spacing
+        // IMPROVED: Use adaptive consistency threshold
+        if (currentPredictionConsistencyCounter >= currentConsistencyThreshold) {
             val canAcceptPrediction = if (inPostSpacingWindow) {
-                // In post-spacing window: allow any prediction (including repeats)
                 true
             } else {
-                // Normal operation: STRICT - no repeats allowed
                 newPrediction != lastConfirmedPrediction
             }
 
@@ -348,7 +416,8 @@ class SignLanguageManager(
                 val updatedPrediction = if (currentPrediction.isEmpty() || currentPrediction == "Ready") {
                     newPrediction
                 } else {
-                    "$currentPrediction$newPrediction" // No space between letters unless hands go out of frame
+                    val separator = if (newPrediction.length > 1) " " else ""
+                    "$currentPrediction$separator$newPrediction"
                 }
 
                 _signLanguageState.value = _signLanguageState.value.copy(
@@ -356,18 +425,15 @@ class SignLanguageManager(
                     error = null
                 )
 
-                // ALWAYS update lastConfirmedPrediction after successful acceptance
                 lastConfirmedPrediction = newPrediction
 
                 Log.d("SignLanguageManager", "New prediction confirmed: $newPrediction -> lastConfirmed updated to: $lastConfirmedPrediction")
 
-                // Exit post-spacing state if we were in it
                 if (inPostSpacingWindow) {
                     justCompletedSpacing = false
                     Log.d("SignLanguageManager", "Exited post-spacing window after successful prediction")
                 }
 
-                // IMPORTANT: Reset consistency counter to prevent immediate re-acceptance
                 currentPredictionConsistencyCounter = 0
                 tempPredictionBuffer = ""
 

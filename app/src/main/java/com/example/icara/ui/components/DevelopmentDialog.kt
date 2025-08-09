@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun DevelopmentDialog(onDismiss: () -> Unit) {
     AlertDialog(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         onDismissRequest = onDismiss,
         icon = {

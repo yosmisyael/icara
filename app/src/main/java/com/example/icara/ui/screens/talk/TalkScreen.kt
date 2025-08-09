@@ -151,6 +151,7 @@ fun TalkScreen(
                         onToggleMaximize = { maximizedCard = MaximizedState.NONE },
                         chatBoxTitle = "Makna Isyaratmu",
                         transcriptText = signLanguageState.predictedSign,
+                        onFabClick = { showUnderDevelopmentDialog = true },
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
@@ -200,6 +201,7 @@ fun TalkScreen(
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
                         chatBoxTitle = "Makna Isyaratmu",
                         transcriptText = signLanguageState.predictedSign,
+                        onFabClick = { showUnderDevelopmentDialog = true },
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
@@ -249,6 +251,7 @@ fun TalkScreen(
                         onToggleMaximize = { maximizedCard = MaximizedState.SIGN },
                         chatBoxTitle = "Makna Isyaratmu",
                         transcriptText = signLanguageState.predictedSign,
+                        onFabClick = { showUnderDevelopmentDialog = true },
                         cameraPreview = {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AndroidView(
